@@ -1,4 +1,4 @@
-# SETS_RMSP
+# Social–Ecological–Technological System: The Case of Metropolitan Region of São Paulo, Brazil
 This repository contains all databases and codes to support reported results published in the paper "Assessing Landslide Drivers in 
 Social–Ecological–Technological Systems: The Case of Metropolitan Region of São Paulo, Brazil"
 
