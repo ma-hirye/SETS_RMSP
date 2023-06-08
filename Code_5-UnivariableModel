@@ -1,0 +1,803 @@
+################################################ Estat - UM (Univariable Model) ---------------------------------
+rm(list=ls())
+gc()
+
+library(data.table)
+library(lmtest) #lr test
+library(pscl) #R2
+
+rm(list=ls()[! ls() %in% c("pts_data")])
+# pts_data = read.csv2 ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/DataAll_Train_PTS.csv", header=T)
+
+Ano = 2010
+Nboot = 1000
+#Nboot = 2
+Nsamples = 1000
+
+data = as.data.frame(pts_data)
+
+data$Sbn2010 = as.factor(data$Sbn2010)
+
+data$SubnChn [data$SubnChn==2] = 0
+data$SubnChn = as.factor(data$SubnChn)
+
+data$Suscep2e3 [data$Suscep==1] = 0
+data$Suscep2e3 [data$Suscep==2] = 1
+data$Suscep2e3 [data$Suscep==3] = 1
+data$Suscep2e3 = as.factor(data$Suscep2e3)
+
+data$Suscep3 [data$Suscep==1] = 0
+data$Suscep3 [data$Suscep==2] = 0
+data$Suscep3 [data$Suscep==3] = 1
+data$Suscep3 = as.factor(data$Suscep3)
+
+data$Suscep = as.factor(data$Suscep)
+unique(data$Suscep)
+
+tab_class = as.data.frame(data$Class)
+names(tab_class) = c("Class")
+tab_class$Cl = NA
+tab_class$Cl[tab_class$Class=="yes"] = 1
+tab_class$Cl[tab_class$Class=="no"] = 0
+data$Class = as.factor(tab_class$Cl)
+rm(tab_class)
+
+data$AspectD = NA
+data$AspectD [is.na(data$Aspect)] = "Flat"
+data$AspectD [data$Aspect==0] = "N"
+data$AspectD [data$Aspect>=(337.5)| data$Aspect<(22.5)] = "N"
+data$AspectD [data$Aspect>=(22.5) & data$Aspect<(67.5)] = "NE"
+data$AspectD [data$Aspect>=(67.5) & data$Aspect<(112.5)] = "E"
+data$AspectD [data$Aspect>=(112.5) & data$Aspect<(157.5)] = "SE"
+data$AspectD [data$Aspect>=(157.5) & data$Aspect<(202.5)] = "S"
+data$AspectD [data$Aspect>=(202.5) & data$Aspect<(247.5)] = "SW"
+data$AspectD [data$Aspect>=(247.5) & data$Aspect<(292.5)] = "W"
+data$AspectD [data$Aspect>=(292.5) & data$Aspect<(337.5)] = "NW"
+data$AspectD = as.factor(data$AspectD)
+unique(data$AspectD)
+
+data$AspectDN = 0
+data$AspectDN [data$AspectD=="N"] = 1
+data$AspectDN = as.factor(data$AspectDN)
+data$AspectDNE = 0
+data$AspectDNE [data$AspectD=="NE"] = 1
+data$AspectDNE = as.factor(data$AspectDNE)
+data$AspectDE = 0
+data$AspectDE [data$AspectD=="E"] = 1
+data$AspectDE = as.factor(data$AspectDE)
+data$AspectDSE = 0
+data$AspectDSE [data$AspectD=="SE"] = 1
+data$AspectDSE = as.factor(data$AspectDSE)
+data$AspectDS = 0
+data$AspectDS [data$AspectD=="S"] = 1
+data$AspectDS = as.factor(data$AspectDS)
+data$AspectDSW = 0
+data$AspectDSW [data$AspectD=="SW"] = 1
+data$AspectDSW = as.factor(data$AspectDSW)
+data$AspectDW = 0
+data$AspectDW [data$AspectD=="W"] = 1
+data$AspectDW = as.factor(data$AspectDW)
+data$AspectDNW = 0
+data$AspectDNW [data$AspectD=="NW"] = 1
+data$AspectDNW = as.factor(data$AspectDNW)
+data$AspectDFlat = 0
+data$AspectDFlat [data$AspectD=="Flat"] = 1
+data$AspectDFlat = as.factor(data$AspectDFlat)
+
+data$AspectD4 = NA
+data$AspectD4 [is.na(data$Aspect)] = "0" #"Flat"
+data$AspectD4 [data$Aspect==0] =  "1" #"N"
+data$AspectD4 [data$Aspect>=(315)| data$Aspect<(45)] =  "1" #"N"
+data$AspectD4 [data$Aspect>=(45) & data$Aspect<(135)] =  "2" #"E"
+data$AspectD4 [data$Aspect>=(135) & data$Aspect<(225)] =  "3" #"S"
+data$AspectD4 [data$Aspect>=(225) & data$Aspect<(315)] =  "4" #"W"
+data$AspectD4 = as.factor(data$AspectD4)
+unique(data$AspectD4)
+
+data$AspectD4Flat = 0
+data$AspectD4Flat [data$AspectD=="Flat"] = 1
+data$AspectD4Flat = as.factor(data$AspectD4Flat)
+data$AspectD4N = 0
+data$AspectD4N [data$AspectD=="N"] = 1
+data$AspectD4N = as.factor(data$AspectD4N)
+data$AspectD4E = 0
+data$AspectD4E [data$AspectD=="E"] = 1
+data$AspectD4E = as.factor(data$AspectD4E)
+data$AspectD4S = 0
+data$AspectD4S [data$AspectD=="S"] = 1
+data$AspectD4S = as.factor(data$AspectD4S)
+data$AspectD4W = 0
+data$AspectD4W [data$AspectD=="W"] = 1
+data$AspectD4W = as.factor(data$AspectD4W)
+
+data = droplevels(data)
+
+# Variav_All = c("ID","Class",
+#                "Rn0d14d","RainIn0d14d","RainIn1d14d","RainIn2d14d",
+#                "Slope",
+#                "Aspect","AspectD4",
+#                "Veg2010","VegDif","Suscep",
+#                "MnI2010","MnIncDf",
+#                "Sbn2010","SubnChn",
+#                "Dm2010","DmDif",
+#                "PSEsg10","PSPav10","PSMF10","PSBL10","PEsgCA10",
+#                "PReAlf10","PReFeAlf10","PReMaAlf10",
+#                "PReFe10","PReMa10",
+#                "HabDm10")
+# Variav_AllsClass = Variav_All[-1]
+# 
+# data = data[,Variav_All]
+
+
+
+
+########################################### UM - Continuous variables and discrete variables with 2 classes ---------------------------------
+rm(list=ls()[! ls() %in% c("pts_data", "data")])
+
+Ano = 2010
+Nsamples = 1000
+Nboot = 1000
+#Nboot = 2
+
+## Continuous variables and discrete variables with 2 classes
+# Variable selection [v] and Bootstrap to model calculation [b]
+#Model parameters: Coefficient (intercept&parameter); std. error (intercept&parameter); p-value (intercept&parameter)[association between variable and response]
+#Statistical Tests for Individual Predictors: Likelihood Ratio Test [significance of the addition of new term to the model] 
+#Goodness of Fit: R2 (Nagelkerke R^2 index) from lrm (rms package)
+VarEstat_Cont = c("coef","coef.se","coef.p-val", 
+                  "LRchi2","LRchi2.pvalue",
+                  "r2Nagelkerke")
+
+Var_Cont = c("ID", "Class",
+             "Rn0d14d","RainIn0d14d","RainIn1d14d","RainIn2d14d",
+             "Slope",
+             "Aspect",
+             "Veg2010","VegDif",
+             "MnI2010","MnIncDf",
+             "Sbn2010","SubnChn",
+             "Dm2010","DmDif",
+             "PSEsg10","PSPav10","PSMF10","PSBL10","PEsgCA10",
+             "PReAlf10","PReFeAlf10","PReMaAlf10",
+             "PReFe10","PReMa10",
+             "HabDm10")
+nVar_Cont = length(Var_Cont)-2
+
+data_Cont = data[,Var_Cont]
+data_Cont = data.table(data[Var_Cont])
+setkeyv(data_Cont,c("Class"))
+
+Model_Cont_Samples_train = data.frame(Boot=1:Nboot, Variav=NA, Samples=NA)
+
+Model_Cont_coef = data.frame(matrix(NA, ncol=Nboot, nrow=nVar_Cont), row.names=c(Var_Cont[-(1:2)]))
+colnames(Model_Cont_coef) = paste("Boot",1:Nboot, sep=" ")
+Model_Cont_coef.se = Model_Cont_coef
+Model_Cont_coef.pvalue = Model_Cont_coef
+Model_Cont_intercept = Model_Cont_coef
+Model_Cont_intercept.se = Model_Cont_coef
+Model_Cont_intercept.pvalue = Model_Cont_coef
+Model_Cont_LRchi2 = Model_Cont_coef
+Model_Cont_LRchi2.pvalue = Model_Cont_coef
+Model_Cont_r2Nagelkerke = Model_Cont_coef
+Model_Cont_aic = Model_Cont_coef
+
+v=1
+b=1
+for (v in (1:nVar_Cont)) {
+  cols = c("ID", "Class",Var_Cont[2+v])
+  tmp_Contv = data_Cont[,cols,with=F]
+  tmp_Contv = na.omit(tmp_Contv)
+  for (b in (1:Nboot)) {
+    tmp_Cont = rbind((tmp_Contv[tmp_Contv$Class==1,][sample(nrow(tmp_Contv[tmp_Contv$Class==1,]), Nsamples, replace=F),]),
+                   (tmp_Contv[tmp_Contv$Class==0,][sample(nrow(tmp_Contv[tmp_Contv$Class==0,]), Nsamples, replace=F),]))
+    Model_Cont_Samples_train[b,2] = Var_Cont[2+v]
+    Model_Cont_Samples_train[b,3] = paste(as.vector(tmp_Cont$ID),collapse="-")
+    tmp_Cont = tmp_Cont[,-1]
+    m_Cont = glm(formula=Class ~ ., family=binomial(link="logit"), data=tmp_Cont)
+    Model_Cont_coef[v,b] = as.numeric(coef(summary(m_Cont))[2,1])
+    Model_Cont_coef.se[v,b] = as.numeric(coef(summary(m_Cont))[2,2])
+    Model_Cont_coef.pvalue[v,b] = as.numeric(coef(summary(m_Cont))[2,4])
+    Model_Cont_intercept[v,b] = as.numeric(coef(summary(m_Cont))[1,1])
+    Model_Cont_intercept.se[v,b] = as.numeric(coef(summary(m_Cont))[1,2])
+    Model_Cont_intercept.pvalue[v,b] = as.numeric(coef(summary(m_Cont))[1,4])
+    tmp_Cont_lrtest = lrtest(m_Cont) 
+    Model_Cont_LRchi2[v,b] = as.numeric(tmp_Cont_lrtest[2,4])
+    Model_Cont_LRchi2.pvalue[v,b] = as.numeric(tmp_Cont_lrtest[2,5])
+    tmp_Cont_pR2 = pR2(m_Cont)
+    Model_Cont_r2Nagelkerke[v,b] = as.numeric(tmp_Cont_pR2[6])
+    Model_Cont_aic[v,b] = as.numeric(m_Cont$aic)
+    print(paste("boot =", b, "- variav =", Var_Cont[2+v]))
+    }
+  }
+
+write.csv2 (Model_Cont_Samples_train,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_Samples_train.csv")
+write.csv2 (Model_Cont_coef,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_coef.csv")
+write.csv2 (Model_Cont_coef.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_coef.se.csv")
+write.csv2 (Model_Cont_coef.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_coef.pvalue.csv")
+write.csv2 (Model_Cont_intercept,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_intercept.csv")
+write.csv2 (Model_Cont_intercept.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_intercept.se.csv")
+write.csv2 (Model_Cont_intercept.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_interceptf.pvalue.csv")
+write.csv2 (Model_Cont_LRchi2,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_LRchi2.csv")
+write.csv2 (Model_Cont_LRchi2.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_LRchi2.pvalue.csv")
+write.csv2 (Model_Cont_r2Nagelkerke,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_r2Nagelkerke.csv")
+write.csv2 (Model_Cont_aic,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_aic.csv")
+
+VarEstat_ContAll = c("mean.coef_param","CIinf mean.coef_param","CIsup coef_param",
+                  "mean.coef.p-value","CIinf mean.coef.p-value","CIsup mean.coef.p-value",
+                  "mean.LL0","CIinf mean.LL0","CIsup mean.LL0",
+                  "mean.LLMx","CIinf mean.LLMx","CIsup mean.LLMx",
+                  "mean.LRchi2_MXm0","CIinf mean.LRchi2_MXm0","CIsup mean_MXm0.LRchi2",
+                  "mean.LRchi2_MXm0.pvalue","CIinf mean.LRchi2_MXm0.pvalue","CIsup mean_MXm0.LRchi2.pvalue",
+                  "mean.r2Nagelkerke","CIinf mean.r2Nagelkerke", "CIsup mean.r2Nagelkerke",
+                  "mean.aic","CIinf mean.aic", "CIsup mean.aic")
+
+Model_ContAll = data.frame(matrix(NA, ncol=length(VarEstat_ContAll), nrow=nVar_Cont))
+colnames(Model_ContAll) = c(VarEstat_ContAll)
+rownames(Model_ContAll) = Var_Cont[-(1:2)]
+
+for (v in 1:nVar_Cont) {
+  variv = Var_Cont[v+2]
+  Model_ContAll[v,1] = mean(as.numeric(Model_Cont_coef[v,]))
+  Model_ContAll[v,2] = mean(as.numeric(Model_Cont_coef[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Cont_coef[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,3] = mean(as.numeric(Model_Cont_coef[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Cont_coef[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,4] = mean(as.numeric(Model_Cont_coef.pvalue[v,]))
+  Model_ContAll[v,5] = mean(as.numeric(Model_Cont_coef.pvalue[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Cont_coef.pvalue[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,6] = mean(as.numeric(Model_Cont_coef.pvalue[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Cont_coef.pvalue[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,7] = NA
+  Model_ContAll[v,8] = NA
+  Model_ContAll[v,9] = NA
+  Model_ContAll[v,10] = NA
+  Model_ContAll[v,11] = NA
+  Model_ContAll[v,12] = NA
+  Model_ContAll[v,13] = mean(as.numeric(Model_Cont_LRchi2[v,]))
+  Model_ContAll[v,14] = mean(as.numeric(Model_Cont_LRchi2[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Cont_LRchi2[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,15] = mean(as.numeric(Model_Cont_LRchi2[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Cont_LRchi2[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,16] = mean(as.numeric(Model_Cont_LRchi2.pvalue[v,]))
+  Model_ContAll[v,17] = mean(as.numeric(Model_Cont_LRchi2.pvalue[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Cont_LRchi2.pvalue[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,18] = mean(as.numeric(Model_Cont_LRchi2.pvalue[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Cont_LRchi2.pvalue[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,19] = mean(as.numeric(Model_Cont_r2Nagelkerke[v,]))
+  Model_ContAll[v,20] = mean(as.numeric(Model_Cont_r2Nagelkerke[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Cont_r2Nagelkerke[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,21] = mean(as.numeric(Model_Cont_r2Nagelkerke[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Cont_r2Nagelkerke[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,22] = mean(as.numeric(Model_Cont_aic[v,]))
+  Model_ContAll[v,23] = mean(as.numeric(Model_Cont_aic[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Cont_aic[v,])))/sqrt(Nboot)))
+  Model_ContAll[v,24] = mean(as.numeric(Model_Cont_aic[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Cont_aic[v,])))/sqrt(Nboot)))
+  print(v)
+}
+
+write.csv2 (Model_ContAll,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_Cont.csv" )
+
+Model_Cont_intercept = read.csv2 ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Cont_intercept.csv", header=T)
+rownames (Model_Cont_intercept) = Model_Cont_intercept$X
+Model_Cont_intercept = Model_Cont_intercept[,-1]
+VarEstat_ContAll_intercept = c("mean.coef_param","CIinf mean.coef_param","CIsup coef_param")
+Model_ContAll_intercept = data.frame(matrix(NA, ncol=length(VarEstat_ContAll_intercept), nrow=(nVar_Cont)))
+colnames(Model_ContAll_intercept) = c(VarEstat_ContAll_intercept)
+rown = Var_Cont[-(1:2)]
+rownames(Model_ContAll_intercept) = rown
+for (vdes in 1:length(rown)) {
+    varDesagNom = rown[vdes]
+    Model_ContAll_intercept[varDesagNom,1] = mean(as.numeric(Model_Cont_intercept[varDesagNom,]))
+    Model_ContAll_intercept[varDesagNom,2] = mean(as.numeric(Model_Cont_intercept[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_Cont_intercept[varDesagNom,]))/sqrt(Nboot))
+    Model_ContAll_intercept[varDesagNom,3] = mean(as.numeric(Model_Cont_intercept[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_Cont_intercept[varDesagNom,]))/sqrt(Nboot))
+    print(varDesagNom)
+  }
+write.csv2 (Model_ContAll_intercept,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_Cont_intercept.csv" )
+
+
+
+
+
+########################################### UM - Discrete variables Suscep ---------------------------------
+rm(list=ls()[! ls() %in% c("pts_data", "data")])
+
+Ano = 2010
+Nsamples = 1000
+Nboot = 1000
+#Nboot = 2
+
+#Model parameters: Coefficient (intercept&parameter); std. error (intercept&parameter); p-value (intercept&parameter)[association between variable and response]
+#Statistical Tests for Individual Predictors: Likelihood Ratio Test [significance of the addition of new term to the model] 
+#Goodness of Fit: R2 (Nagelkerke R^2 index) from lrm (rms package)
+VarEstat_Disc = c("coef","coef.se","coef.p-val", 
+                  "LRchi2","LRchi2.pvalue",
+                  "r2Nagelkerke")
+
+Var_Disc = c("ID", "Class","Suscep")
+Var_DiscDesag = c("ID","Class","Suscep2","Suscep3")
+nVar_Disc = length(Var_Disc) - 2
+nVar_DiscDesag = length(Var_DiscDesag) - 2
+
+data_Disc = data.table(data[Var_Disc])
+setkeyv(data_Disc,c("Class"))
+
+Model_Disc_Samples_train = data.frame(Boot=1:Nboot, Variav=NA, Samples=NA)
+
+Model_Disc_coef = data.frame(matrix(NA, ncol=Nboot, nrow=nVar_DiscDesag), row.names=c(Var_DiscDesag[-(1:2)]))
+colnames(Model_Disc_coef) = paste("Boot",1:Nboot, sep=" ")
+Model_Disc_coef.se = Model_Disc_coef
+Model_Disc_coef.pvalue = Model_Disc_coef
+
+Model_Disc_intercept = data.frame(matrix(NA, ncol=Nboot, nrow=nVar_Disc), row.names=c(Var_Disc[-(1:2)]))
+colnames(Model_Disc_intercept) = paste("Boot",1:Nboot, sep=" ")
+Model_Disc_intercept.se = Model_Disc_intercept
+Model_Disc_intercept.pvalue = Model_Disc_intercept
+
+Model_Disc_LRchi2 = Model_Disc_intercept
+Model_Disc_LRchi2.pvalue = Model_Disc_intercept
+Model_Disc_r2Nagelkerke = Model_Disc_intercept
+Model_Disc_aic = Model_Disc_intercept
+
+# v=1
+# b=1
+for (v in (1:nVar_Disc)) {
+  cols = c("ID", "Class",Var_Disc[2+v])
+  tmp_Discv = data_Disc[,cols,with=F]
+  tmp_Discv = na.omit(tmp_Discv)
+  for (b in (1:Nboot)) {
+    tmp_Disc = rbind((tmp_Discv[tmp_Discv$Class==1,][sample(nrow(tmp_Discv[tmp_Discv$Class==1,]), Nsamples, replace=F),]),
+                    (tmp_Discv[tmp_Discv$Class==0,][sample(nrow(tmp_Discv[tmp_Discv$Class==0,]), Nsamples, replace=F),]))
+    Model_Disc_Samples_train[b,2] = Var_Disc[2+v]
+    Model_Disc_Samples_train[b,3] = paste(as.vector(tmp_Disc$ID),collapse="-")
+    tmp_Disc = tmp_Disc[,-1]
+    m_Disc = glm(formula=Class ~ ., family=binomial(link="logit"), data=tmp_Disc)
+    tmp_Disc_coef = as.data.frame(coef(summary(m_Disc))[,1])
+    for (p in (1:(nrow(tmp_Disc_coef)))) {Model_Disc_coef[rownames(tmp_Disc_coef)[p],b] = tmp_Disc_coef[rownames(tmp_Disc_coef)[p],1]}
+    tmp_Disc_coef.se = as.data.frame(coef(summary(m_Disc))[,2])
+    for (p in (1:(nrow(tmp_Disc_coef.se)))) {Model_Disc_coef.se[rownames(tmp_Disc_coef.se)[p],b] = tmp_Disc_coef.se[rownames(tmp_Disc_coef.se)[p],1]}
+    tmp_Disc_coef.pvalue = as.data.frame(coef(summary(m_Disc))[,4])
+    for (p in (1:nrow(tmp_Disc_coef.pvalue))) {Model_Disc_coef.pvalue[rownames(tmp_Disc_coef.pvalue)[p],b] = tmp_Disc_coef.pvalue[rownames(tmp_Disc_coef.pvalue)[p],1]}
+    Model_Disc_intercept[v,b] = as.numeric(coef(summary(m_Disc))[1,1])
+    Model_Disc_intercept.se[v,b] = as.numeric(coef(summary(m_Disc))[1,2])
+    Model_Disc_intercept.pvalue[v,b] = as.numeric(coef(summary(m_Disc))[1,4])
+    tmp_Disc_lrtest = lrtest(m_Disc) 
+    Model_Disc_LRchi2[v,b] = as.numeric(tmp_Disc_lrtest[2,4])
+    Model_Disc_LRchi2.pvalue[v,b] = as.numeric(tmp_Disc_lrtest[2,5])
+    tmp_Disc_pR2 = pR2(m_Disc)
+    Model_Disc_r2Nagelkerke[v,b] = as.numeric(tmp_Disc_pR2[6])
+    Model_Disc_aic[v,b] = as.numeric(m_Disc$aic)
+    print(paste("boot =", b, "- variav =", Var_Disc[2+v]))
+    }
+}
+
+write.csv2 (Model_Disc_Samples_train,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_Samples_train.csv")
+write.csv2 (Model_Disc_coef,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_coef.csv")
+write.csv2 (Model_Disc_coef.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_coef.se.csv")
+write.csv2 (Model_Disc_coef.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_coef.pvalue.csv")
+write.csv2 (Model_Disc_intercept,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_intercept.csv")
+write.csv2 (Model_Disc_intercept.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_intercept.se.csv")
+write.csv2 (Model_Disc_intercept.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_interceptf.pvalue.csv")
+write.csv2 (Model_Disc_LRchi2,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_LRchi2.csv")
+write.csv2 (Model_Disc_LRchi2.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_LRchi2.pvalue.csv")
+write.csv2 (Model_Disc_r2Nagelkerke,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_r2Nagelkerke.csv")
+write.csv2 (Model_Disc_aic,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_aic.csv")
+
+VarEstat_DiscAll = c("mean.coef_param","CIinf mean.coef_param","CIsup coef_param",
+                     "mean.coef.p-value","CIinf mean.coef.p-value","CIsup mean.coef.p-value",
+                     "mean.LL0","CIinf mean.LL0","CIsup mean.LL0",
+                     "mean.LLMx","CIinf mean.LLMx","CIsup mean.LLMx",
+                     "mean.LRchi2_MXm0","CIinf mean.LRchi2_MXm0","CIsup mean_MXm0.LRchi2",
+                     "mean.LRchi2_MXm0.pvalue","CIinf mean.LRchi2_MXm0.pvalue","CIsup mean_MXm0.LRchi2.pvalue",
+                     "mean.r2Nagelkerke","CIinf mean.r2Nagelkerke", "CIsup mean.r2Nagelkerke",
+                     "mean.aic","CIinf mean.aic", "CIsup mean.aic")
+
+Model_DiscAll = data.frame(matrix(NA, ncol=length(VarEstat_DiscAll), nrow=(1+nVar_DiscDesag+nVar_Disc)))
+colnames(Model_DiscAll) = c(VarEstat_DiscAll)
+rown = c("(Intercept)",Var_DiscDesag[3:4],Var_Disc[3])
+rownames(Model_DiscAll) = rown
+
+for (v in 1:nVar_Disc) {
+  variv = Var_Disc[v+2]
+  for (vdes in 1:length(rown)) {
+    varDesagNom = rown[vdes]
+    Model_DiscAll[varDesagNom,1] = mean(as.numeric(Model_Disc_coef[varDesagNom,]))
+    Model_DiscAll[varDesagNom,2] = mean(as.numeric(Model_Disc_coef[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_Disc_coef[varDesagNom,]))/sqrt(Nboot))
+    Model_DiscAll[varDesagNom,3] = mean(as.numeric(Model_Disc_coef[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_Disc_coef[varDesagNom,]))/sqrt(Nboot))
+    Model_DiscAll[varDesagNom,4] = mean(as.numeric(Model_Disc_coef.pvalue[varDesagNom,]))
+    Model_DiscAll[varDesagNom,5] = mean(as.numeric(Model_Disc_coef.pvalue[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_Disc_coef.pvalue[varDesagNom,]))/sqrt(Nboot))
+    Model_DiscAll[varDesagNom,6] = mean(as.numeric(Model_Disc_coef.pvalue[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_Disc_coef.pvalue[varDesagNom,]))/sqrt(Nboot))
+    print(varDesagNom)
+  }
+  Model_DiscAll[variv,13] = mean(as.numeric(Model_Disc_LRchi2[variv,]))
+  Model_DiscAll[variv,14] = mean(as.numeric(Model_Disc_LRchi2[variv,]) - (qnorm(0.975)*((sd(as.numeric(Model_Disc_LRchi2[variv,])))/sqrt(Nboot))))
+  Model_DiscAll[variv,15] = mean(as.numeric(Model_Disc_LRchi2[variv,]) + (qnorm(0.975)*((sd(as.numeric(Model_Disc_LRchi2[variv,])))/sqrt(Nboot))))
+  Model_DiscAll[variv,16] = mean(as.numeric(Model_Disc_LRchi2.pvalue[variv,]))
+  Model_DiscAll[variv,17] = mean(as.numeric(Model_Disc_LRchi2.pvalue[variv,])) - (qnorm(0.975)*sd(as.numeric(Model_Disc_LRchi2.pvalue[variv,]))/sqrt(Nboot))
+  Model_DiscAll[variv,18] = mean(as.numeric(Model_Disc_LRchi2.pvalue[variv,])) + (qnorm(0.975)*sd(as.numeric(Model_Disc_LRchi2.pvalue[variv,]))/sqrt(Nboot))
+  Model_DiscAll[variv,19] = mean(as.numeric(Model_Disc_r2Nagelkerke[variv,]))
+  Model_DiscAll[variv,20] = mean(as.numeric(Model_Disc_r2Nagelkerke[variv,])) - (qnorm(0.975)*sd(as.numeric(Model_Disc_r2Nagelkerke[variv,]))/sqrt(Nboot))
+  Model_DiscAll[variv,21] = mean(as.numeric(Model_Disc_r2Nagelkerke[variv,])) + (qnorm(0.975)*sd(as.numeric(Model_Disc_r2Nagelkerke[variv,]))/sqrt(Nboot))
+  Model_DiscAll[variv,22] = mean(as.numeric(Model_Disc_aic[variv,]))
+  Model_DiscAll[variv,23] = mean(as.numeric(Model_Disc_aic[variv,])) - (qnorm(0.975)*((sd(as.numeric(Model_Disc_aic[variv,])))/sqrt(Nboot)))
+  Model_DiscAll[variv,24] = mean(as.numeric(Model_Disc_aic[variv,])) + (qnorm(0.975)*((sd(as.numeric(Model_Disc_aic[variv,])))/sqrt(Nboot)))
+  
+  print(variv)
+}
+
+write.csv2 (Model_DiscAll,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_Disc.csv" )
+
+
+
+
+########################################### UM - Discrete variables AspectD4 ---------------------------------
+rm(list=ls()[! ls() %in% c("pts_data", "data")])
+
+Ano = 2010
+Nsamples = 1000
+Nboot = 1000
+#Nboot = 2
+
+#Model parameters: Coefficient (intercept&parameter); std. error (intercept&parameter); p-value (intercept&parameter)[association between variable and response]
+#Statistical Tests for Individual Predictors: Likelihood Ratio Test [significance of the addition of new term to the model] 
+#Goodness of Fit: R2 (Nagelkerke R^2 index) from lrm (rms package)
+VarEstat_Disc = c("coef","coef.se","coef.p-val", 
+                  "LRchi2","LRchi2.pvalue",
+                  "r2Nagelkerke")
+
+Var_Disc4cl = c("ID", "Class","AspectD4")
+Var_Disc4clDesag = c("ID", "Class","AspectD40", "AspectD41", "AspectD42", "AspectD43", "AspectD44")
+nVar_Disc4cl = length(Var_Disc4cl) - 2
+nVar_Disc4clDesag = length(Var_Disc4clDesag) - 2
+
+data_Disc4cl = data.table(data[Var_Disc4cl])
+setkeyv(data_Disc4cl,c("Class"))
+
+Model_Disc4cl_Samples_train = data.frame(Boot=1:Nboot, Variav=NA, Samples=NA)
+
+Model_Disc4cl_coef = data.frame(matrix(NA, ncol=Nboot, nrow=nVar_Disc4clDesag), row.names=c(Var_Disc4clDesag[-(1:2)]))
+colnames(Model_Disc4cl_coef) = paste("Boot",1:Nboot, sep=" ")
+Model_Disc4cl_coef.se = Model_Disc4cl_coef
+Model_Disc4cl_coef.pvalue = Model_Disc4cl_coef
+
+Model_Disc4cl_intercept = data.frame(matrix(NA, ncol=Nboot, nrow=nVar_Disc4cl), row.names=c(Var_Disc4cl[-(1:2)]))
+colnames(Model_Disc4cl_intercept) = paste("Boot",1:Nboot, sep=" ")
+Model_Disc4cl_intercept.se = Model_Disc4cl_intercept
+Model_Disc4cl_intercept.pvalue = Model_Disc4cl_intercept
+
+Model_Disc4cl_LRchi2 = Model_Disc4cl_intercept
+Model_Disc4cl_LRchi2.pvalue = Model_Disc4cl_intercept
+Model_Disc4cl_r2Nagelkerke = Model_Disc4cl_intercept
+Model_Disc4cl_aic = Model_Disc4cl_intercept
+
+# v=1
+# b=1
+for (v in (1:nVar_Disc4cl)) {
+  cols = c("ID", "Class",Var_Disc4cl[2+v])
+  tmp_Disc4clv = data_Disc4cl[,cols,with=F]
+  tmp_Disc4clv = na.omit(tmp_Disc4clv)
+  for (b in (1:Nboot)) {
+    tmp_Disc4cl = rbind((tmp_Disc4clv[tmp_Disc4clv$Class==1,][sample(nrow(tmp_Disc4clv[tmp_Disc4clv$Class==1,]), Nsamples, replace=F),]),
+                     (tmp_Disc4clv[tmp_Disc4clv$Class==0,][sample(nrow(tmp_Disc4clv[tmp_Disc4clv$Class==0,]), Nsamples, replace=F),]))
+    Model_Disc4cl_Samples_train[b,2] = Var_Disc4cl[2+v]
+    Model_Disc4cl_Samples_train[b,3] = paste(as.vector(tmp_Disc4cl$ID),collapse="-")
+    tmp_Disc4cl = tmp_Disc4cl[,-1]
+    m_Disc4cl = glm(formula=Class ~ ., family=binomial(link="logit"), data=tmp_Disc4cl)
+    tmp_Disc4cl_coef = as.data.frame(coef(summary(m_Disc4cl))[,1])
+    for (p in (1:(nrow(tmp_Disc4cl_coef)))) {Model_Disc4cl_coef[rownames(tmp_Disc4cl_coef)[p],b] = tmp_Disc4cl_coef[rownames(tmp_Disc4cl_coef)[p],1]}
+    tmp_Disc4cl_coef.se = as.data.frame(coef(summary(m_Disc4cl))[,2])
+    for (p in (1:(nrow(tmp_Disc4cl_coef.se)))) {Model_Disc4cl_coef.se[rownames(tmp_Disc4cl_coef.se)[p],b] = tmp_Disc4cl_coef.se[rownames(tmp_Disc4cl_coef.se)[p],1]}
+    tmp_Disc4cl_coef.pvalue = as.data.frame(coef(summary(m_Disc4cl))[,4])
+    for (p in (1:nrow(tmp_Disc4cl_coef.pvalue))) {Model_Disc4cl_coef.pvalue[rownames(tmp_Disc4cl_coef.pvalue)[p],b] = tmp_Disc4cl_coef.pvalue[rownames(tmp_Disc4cl_coef.pvalue)[p],1]}
+    Model_Disc4cl_intercept[v,b] = as.numeric(coef(summary(m_Disc4cl))[1,1])
+    Model_Disc4cl_intercept.se[v,b] = as.numeric(coef(summary(m_Disc4cl))[1,2])
+    Model_Disc4cl_intercept.pvalue[v,b] = as.numeric(coef(summary(m_Disc4cl))[1,4])
+    tmp_Disc4cl_lrtest = lrtest(m_Disc4cl) 
+    Model_Disc4cl_LRchi2[v,b] = as.numeric(tmp_Disc4cl_lrtest[2,4])
+    Model_Disc4cl_LRchi2.pvalue[v,b] = as.numeric(tmp_Disc4cl_lrtest[2,5])
+    tmp_Disc4cl_pR2 = pR2(m_Disc4cl)
+    Model_Disc4cl_r2Nagelkerke[v,b] = as.numeric(tmp_Disc4cl_pR2[6])
+    Model_Disc4cl_aic[v,b] = as.numeric(m_Disc4cl$aic)
+    print(paste("boot =", b, "- variav =", Var_Disc4cl[2+v]))
+  }
+}
+
+write.csv2 (Model_Disc4cl_Samples_train,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_Samples_train.csv")
+write.csv2 (Model_Disc4cl_coef,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_coef.csv")
+write.csv2 (Model_Disc4cl_coef.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_coef.se.csv")
+write.csv2 (Model_Disc4cl_coef.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_coef.pvalue.csv")
+write.csv2 (Model_Disc4cl_intercept,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_intercept.csv")
+write.csv2 (Model_Disc4cl_intercept.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_intercept.se.csv")
+write.csv2 (Model_Disc4cl_intercept.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_interceptf.pvalue.csv")
+write.csv2 (Model_Disc4cl_LRchi2,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_LRchi2.csv")
+write.csv2 (Model_Disc4cl_LRchi2.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_LRchi2.pvalue.csv")
+write.csv2 (Model_Disc4cl_r2Nagelkerke,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_r2Nagelkerke.csv")
+write.csv2 (Model_Disc4cl_aic,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4_aic.csv")
+
+
+VarEstat_Disc4clAll = c("mean.coef_param","CIinf mean.coef_param","CIsup coef_param",
+                        "mean.coef.p-value","CIinf mean.coef.p-value","CIsup mean.coef.p-value",
+                        "mean.LL0","CIinf mean.LL0","CIsup mean.LL0",
+                        "mean.LLMx","CIinf mean.LLMx","CIsup mean.LLMx",
+                        "mean.LRchi2_MXm0","CIinf mean.LRchi2_MXm0","CIsup mean_MXm0.LRchi2",
+                        "mean.LRchi2_MXm0.pvalue","CIinf mean.LRchi2_MXm0.pvalue","CIsup mean_MXm0.LRchi2.pvalue",
+                        "mean.r2Nagelkerke","CIinf mean.r2Nagelkerke", "CIsup mean.r2Nagelkerke",
+                        "mean.aic","CIinf mean.aic", "CIsup mean.aic")
+
+Model_Disc4clAll = data.frame(matrix(NA, ncol=length(VarEstat_Disc4clAll), nrow=(1+nVar_Disc4clDesag-1+nVar_Disc4cl)))
+colnames(Model_Disc4clAll) = c(VarEstat_Disc4clAll)
+rown = c("(Intercept)",Var_Disc4clDesag[4:7],Var_Disc4cl[3])
+rownames(Model_Disc4clAll) = rown
+
+for (v in 1:nVar_Disc4cl) {
+  variv = Var_Disc4cl[v+2]
+  for (vdes in 1:length(rown)) {
+    varDesagNom = rown[vdes]
+    Model_Disc4clAll[varDesagNom,1] = mean(as.numeric(Model_Disc4cl_coef[varDesagNom,]))
+    Model_Disc4clAll[varDesagNom,2] = mean(as.numeric(Model_Disc4cl_coef[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_Disc4cl_coef[varDesagNom,]))/sqrt(Nboot))
+    Model_Disc4clAll[varDesagNom,3] = mean(as.numeric(Model_Disc4cl_coef[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_Disc4cl_coef[varDesagNom,]))/sqrt(Nboot))
+    Model_Disc4clAll[varDesagNom,4] = mean(as.numeric(Model_Disc4cl_coef.pvalue[varDesagNom,]))
+    Model_Disc4clAll[varDesagNom,5] = mean(as.numeric(Model_Disc4cl_coef.pvalue[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_Disc4cl_coef.pvalue[varDesagNom,]))/sqrt(Nboot))
+    Model_Disc4clAll[varDesagNom,6] = mean(as.numeric(Model_Disc4cl_coef.pvalue[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_Disc4cl_coef.pvalue[varDesagNom,]))/sqrt(Nboot))
+    print(varDesagNom)
+  }
+  Model_Disc4clAll[variv,13] = mean(as.numeric(Model_Disc4cl_LRchi2[variv,]))
+  Model_Disc4clAll[variv,14] = mean(as.numeric(Model_Disc4cl_LRchi2[variv,]) - (qnorm(0.975)*((sd(as.numeric(Model_Disc4cl_LRchi2[variv,])))/sqrt(Nboot))))
+  Model_Disc4clAll[variv,15] = mean(as.numeric(Model_Disc4cl_LRchi2[variv,]) + (qnorm(0.975)*((sd(as.numeric(Model_Disc4cl_LRchi2[variv,])))/sqrt(Nboot))))
+  Model_Disc4clAll[variv,16] = mean(as.numeric(Model_Disc4cl_LRchi2.pvalue[variv,]))
+  Model_Disc4clAll[variv,17] = mean(as.numeric(Model_Disc4cl_LRchi2.pvalue[variv,])) - (qnorm(0.975)*sd(as.numeric(Model_Disc4cl_LRchi2.pvalue[variv,]))/sqrt(Nboot))
+  Model_Disc4clAll[variv,18] = mean(as.numeric(Model_Disc4cl_LRchi2.pvalue[variv,])) + (qnorm(0.975)*sd(as.numeric(Model_Disc4cl_LRchi2.pvalue[variv,]))/sqrt(Nboot))
+  Model_Disc4clAll[variv,19] = mean(as.numeric(Model_Disc4cl_r2Nagelkerke[variv,]))
+  Model_Disc4clAll[variv,20] = mean(as.numeric(Model_Disc4cl_r2Nagelkerke[variv,])) - (qnorm(0.975)*sd(as.numeric(Model_Disc4cl_r2Nagelkerke[variv,]))/sqrt(Nboot))
+  Model_Disc4clAll[variv,21] = mean(as.numeric(Model_Disc4cl_r2Nagelkerke[variv,])) + (qnorm(0.975)*sd(as.numeric(Model_Disc4cl_r2Nagelkerke[variv,]))/sqrt(Nboot))
+  Model_Disc4clAll[variv,22] = mean(as.numeric(Model_Disc4cl_aic[variv,]))
+  Model_Disc4clAll[variv,23] = mean(as.numeric(Model_Disc4cl_aic[variv,])) - (qnorm(0.975)*((sd(as.numeric(Model_Disc4cl_aic[variv,])))/sqrt(Nboot)))
+  Model_Disc4clAll[variv,24] = mean(as.numeric(Model_Disc4cl_aic[variv,])) + (qnorm(0.975)*((sd(as.numeric(Model_Disc4cl_aic[variv,])))/sqrt(Nboot)))
+  
+  print(variv)
+}
+
+write.csv2 (Model_Disc4clAll,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_Disc_AspectD4.csv" )
+
+
+ 
+
+########################################### UM - Discrete variables AspectD4 (dummy) ---------------------------------
+dir = c("Flat","N","E","S","W")
+Variav_AspectD4dum = c("ID", "Class", "AspectD4Flat", "AspectD4N","AspectD4E","AspectD4S","AspectD4W")
+data = data[,Variav_AspectD4dum]
+
+# ad=1
+# Nboot=2
+for (ad in 1:length(dir)) {
+  Var_AspectDum = Variav_AspectD4dum[2+ad]
+  Var_AspectDumDesag = paste(Var_AspectDum,"1",sep="")
+  Var_AspectDumDesag_row.names = c("(Intercept)",Var_AspectDumDesag,Var_AspectDum)
+  
+  data_AspectDum = data.table(data[,c("ID", "Class",Var_AspectDum)])
+  setkeyv(data_AspectDum,c("Class"))
+  data_AspectDum = na.omit(data_AspectDum)
+
+  Model_AspectDum_Samples_train = data.frame(Boot=1:Nboot, Samples=NA)
+
+  Model_AspectDum_coef = data.frame(matrix(NA, ncol=Nboot, nrow=3), row.names=Var_AspectDumDesag_row.names)
+  colnames(Model_AspectDum_coef) = paste("Boot",1:Nboot, sep=" ")
+  Model_AspectDum_coef.se = Model_AspectDum_coef
+  Model_AspectDum_coef.pvalue = Model_AspectDum_coef
+
+  Model_AspectDum_LogLik_l0 = as.numeric()
+  Model_AspectDum_LogLik_lM = as.numeric()
+
+  Model_AspectDum_LRchi2 = as.numeric()
+  Model_AspectDum_LRchi2.pvalue = as.numeric()
+  Model_AspectDum_r2Nagelkerke = as.numeric()
+  Model_AspectDum_aic = as.numeric()
+
+  for (b in (1:Nboot)) {
+    tmp_AspectDum = rbind((data_AspectDum[data_AspectDum$Class==1,][sample(nrow(data_AspectDum[data_AspectDum$Class==1,]), Nsamples, replace=F),]),
+                         (data_AspectDum[data_AspectDum$Class==0,][sample(nrow(data_AspectDum[data_AspectDum$Class==0,]), Nsamples, replace=F),]))
+    tmp_AspectDum = na.omit(tmp_AspectDum)
+    Model_AspectDum_Samples_train[b,2] = paste(as.vector(tmp_AspectDum$ID),collapse="-")
+    tmp_AspectDum = tmp_AspectDum [,-1]
+    m_AspectDum = glm(formula=Class ~ ., family=binomial(link="logit"), data=tmp_AspectDum)
+    tmp_AspectDum_coef = as.data.frame(coef(summary(m_AspectDum))[,1])
+    for (p in (1:(nrow(tmp_AspectDum_coef)))) {Model_AspectDum_coef[rownames(tmp_AspectDum_coef)[p],b] = tmp_AspectDum_coef[rownames(tmp_AspectDum_coef)[p],1]}
+    tmp_AspectDum_coef.se = as.data.frame(coef(summary(m_AspectDum))[,2])
+    for (p in (1:(nrow(tmp_AspectDum_coef.se)))) {Model_AspectDum_coef.se[rownames(tmp_AspectDum_coef.se)[p],b] = tmp_AspectDum_coef.se[rownames(tmp_AspectDum_coef.se)[p],1]}
+    tmp_AspectDum_coef.pvalue = as.data.frame(coef(summary(m_AspectDum))[,4])
+    for (p in (1:nrow(tmp_AspectDum_coef.pvalue))) {Model_AspectDum_coef.pvalue[rownames(tmp_AspectDum_coef.pvalue)[p],b] = tmp_AspectDum_coef.pvalue[rownames(tmp_AspectDum_coef.pvalue)[p],1]}
+    tmp_AspectDum_lrtest = lrtest(m_AspectDum) 
+    Model_AspectDum_LogLik_l0[b] = as.numeric(tmp_AspectDum_lrtest[2,2])
+    Model_AspectDum_LogLik_lM[b] = as.numeric(tmp_AspectDum_lrtest[2,1])
+    Model_AspectDum_LRchi2[b] = as.numeric(tmp_AspectDum_lrtest[2,4])
+    Model_AspectDum_LRchi2.pvalue[b] = as.numeric(tmp_AspectDum_lrtest[2,5])
+    tmp_AspectDum_pR2 = pR2(m_AspectDum)
+    Model_AspectDum_r2Nagelkerke[b] = as.numeric(tmp_AspectDum_pR2[6])
+    Model_AspectDum_aic[b] = as.numeric(m_AspectDum$aic)
+    print(paste("boot =", b, "- variav =", dir[ad]))
+    }
+  
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4dum-",dir[ad],"_Samples_train.csv", sep="")
+  write.csv2 (Model_AspectDum_Samples_train,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4dum-",dir[ad],"_coef.csv", sep="")
+  write.csv2 (Model_AspectDum_coef,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4dum-",dir[ad],"_coef.se.csv", sep="")
+  write.csv2 (Model_AspectDum_coef.se,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4dum-",dir[ad],"_coef.pvalue.csv", sep="")
+  write.csv2 (Model_AspectDum_coef.pvalue,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4dum-",dir[ad],"_intercept.csv", sep="")
+  write.csv2 (Model_AspectDum_LRchi2,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4dum-",dir[ad],"_LRchi2.pvalue.csv", sep="")
+  write.csv2 (Model_AspectDum_LRchi2.pvalue,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4dum-",dir[ad],"_r2Nagelkerke.csv", sep="")
+  write.csv2 (Model_AspectDum_r2Nagelkerke,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectD4dum-",dir[ad],"_aic.csv", sep="")
+  write.csv2 (Model_AspectDum_aic,file)
+
+  VarEstat_AspectDumAll = c("mean.coef_param","CIinf mean.coef_param","CIsup coef_param",
+                            "mean.coef.p-value","CIinf mean.coef.p-value","CIsup mean.coef.p-value",
+                            "mean.LL0","CIinf mean.LL0","CIsup mean.LL0",
+                            "mean.LLMx","CIinf mean.LLMx","CIsup mean.LLMx",
+                            "mean.LRchi2_MXm0","CIinf mean.LRchi2_MXm0","CIsup mean_MXm0.LRchi2",
+                            "mean.LRchi2_MXm0.pvalue","CIinf mean.LRchi2_MXm0.pvalue","CIsup mean_MXm0.LRchi2.pvalue",
+                            "mean.r2Nagelkerke","CIinf mean.r2Nagelkerke", "CIsup mean.r2Nagelkerke",
+                            "mean.aic","CIinf mean.aic", "CIsup mean.aic")
+
+  Model_AspectDumAll = data.frame(matrix(NA, ncol=length(VarEstat_AspectDumAll), nrow=(3)))
+  colnames(Model_AspectDumAll) = c(VarEstat_AspectDumAll)
+  rownames(Model_AspectDumAll) = Var_AspectDumDesag_row.names
+
+  for (vdes in 1:2) {
+     varDesagNom = Var_AspectDumDesag_row.names[vdes]
+     Model_AspectDumAll[varDesagNom,1] = mean(as.numeric(Model_AspectDum_coef[varDesagNom,]))
+     Model_AspectDumAll[varDesagNom,2] = mean(as.numeric(Model_AspectDum_coef[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_AspectDum_coef[varDesagNom,]))/sqrt(Nboot))
+     Model_AspectDumAll[varDesagNom,3] = mean(as.numeric(Model_AspectDum_coef[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_AspectDum_coef[varDesagNom,]))/sqrt(Nboot))
+     Model_AspectDumAll[varDesagNom,4] = mean(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,]))
+     Model_AspectDumAll[varDesagNom,5] = mean(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,]))/sqrt(Nboot))
+     Model_AspectDumAll[varDesagNom,6] = mean(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,]))/sqrt(Nboot))
+     print(varDesagNom)
+   }
+   Model_AspectDumAll[Var_AspectDum,7] = mean(as.numeric(Model_AspectDum_LogLik_l0))
+   Model_AspectDumAll[Var_AspectDum,8] = mean(as.numeric(Model_AspectDum_LogLik_l0) - (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_LogLik_l0)))/sqrt(Nboot))))
+   Model_AspectDumAll[Var_AspectDum,9] = mean(as.numeric(Model_AspectDum_LogLik_l0) + (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_LogLik_l0)))/sqrt(Nboot))))
+   Model_AspectDumAll[Var_AspectDum,10] = mean(as.numeric(Model_AspectDum_LogLik_lM))
+   Model_AspectDumAll[Var_AspectDum,11] = mean(as.numeric(Model_AspectDum_LogLik_lM) - (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_LogLik_lM)))/sqrt(Nboot))))
+   Model_AspectDumAll[Var_AspectDum,12] = mean(as.numeric(Model_AspectDum_LogLik_lM) + (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_LogLik_lM)))/sqrt(Nboot))))
+   
+   Model_AspectDumAll[Var_AspectDum,13] = mean(as.numeric(Model_AspectDum_LRchi2))
+   Model_AspectDumAll[Var_AspectDum,14] = mean(as.numeric(Model_AspectDum_LRchi2) - (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_LRchi2)))/sqrt(Nboot))))
+   Model_AspectDumAll[Var_AspectDum,15] = mean(as.numeric(Model_AspectDum_LRchi2) + (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_LRchi2)))/sqrt(Nboot))))
+   
+   Model_AspectDumAll[Var_AspectDum,16] = mean(as.numeric(Model_AspectDum_LRchi2.pvalue))
+   Model_AspectDumAll[Var_AspectDum,17] = mean(as.numeric(Model_AspectDum_LRchi2.pvalue)) - (qnorm(0.975)*sd(as.numeric(Model_AspectDum_LRchi2.pvalue))/sqrt(Nboot))
+   Model_AspectDumAll[Var_AspectDum,19] = mean(as.numeric(Model_AspectDum_LRchi2.pvalue)) + (qnorm(0.975)*sd(as.numeric(Model_AspectDum_LRchi2.pvalue))/sqrt(Nboot))
+   
+   Model_AspectDumAll[Var_AspectDum,19] = mean(as.numeric(Model_AspectDum_r2Nagelkerke))
+   Model_AspectDumAll[Var_AspectDum,20] = mean(as.numeric(Model_AspectDum_r2Nagelkerke)) - (qnorm(0.975)*sd(as.numeric(Model_AspectDum_r2Nagelkerke))/sqrt(Nboot))
+   Model_AspectDumAll[Var_AspectDum,21] = mean(as.numeric(Model_AspectDum_r2Nagelkerke)) + (qnorm(0.975)*sd(as.numeric(Model_AspectDum_r2Nagelkerke))/sqrt(Nboot))
+   Model_AspectDumAll[Var_AspectDum,22] = mean(as.numeric(Model_AspectDum_aic))
+   Model_AspectDumAll[Var_AspectDum,23] = mean(as.numeric(Model_AspectDum_aic)) - (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_aic)))/sqrt(Nboot)))
+   Model_AspectDumAll[Var_AspectDum,24] = mean(as.numeric(Model_AspectDum_aic)) + (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_aic)))/sqrt(Nboot)))
+  
+ print(Var_AspectDum)
+
+
+ file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_Disc_AspectD4dum-",dir[ad],".csv", sep="")
+ write.csv2 (Model_AspectDumAll, file ) 
+}
+
+
+
+
+########################################### UM - Discrete variables AspectD (dummy) ---------------------------------
+dir = c("Flat","N","NE","E","SE","S","SW","W","NW")
+# ad=2
+# Nboot=2
+
+
+for (ad in 1:9) {
+  dirdum = dir[ad]
+  data$AspectDum = 0
+  data$AspectDum [data$AspectD==dirdum] = 1
+  data$AspectDum = as.factor(data$AspectDum)
+  unique(data$AspectDum)
+  
+  Var_AspectDum = c("ID", "Class","AspectDum")
+  Var_AspectDumDesag = c("ID", "Class","AspectDum1")
+  nVar_AspectDum = length(Var_AspectDum) - 2
+  nVar_AspectDumDesag = length(Var_AspectDumDesag) - 2
+  
+  data_AspectDum = data.table(data[,Var_AspectDum])
+  setkeyv(data_AspectDum,c("Class"))
+  data_AspectDum = na.omit(data_AspectDum)
+  
+  Model_AspectDum_Samples_train = data.frame(Boot=1:Nboot, Samples=NA)
+  
+  Model_AspectDum_coef = data.frame(matrix(NA, ncol=Nboot, nrow=nVar_AspectDumDesag), row.names=c(Var_AspectDumDesag[-(1:2)]))
+  colnames(Model_AspectDum_coef) = paste("Boot",1:Nboot, sep=" ")
+  Model_AspectDum_coef.se = Model_AspectDum_coef
+  Model_AspectDum_coef.pvalue = Model_AspectDum_coef
+  
+  Model_AspectDum_intercept = data.frame(matrix(NA, ncol=Nboot, nrow=nVar_AspectDum), row.names=c(Var_AspectDum[-(1:2)]))
+  colnames(Model_AspectDum_intercept) = paste("Boot",1:Nboot, sep=" ")
+  Model_AspectDum_intercept.se = Model_AspectDum_intercept
+  Model_AspectDum_intercept.pvalue = Model_AspectDum_intercept
+  
+  Model_AspectDum_LRchi2 = Model_AspectDum_intercept
+  Model_AspectDum_LRchi2.pvalue = Model_AspectDum_intercept
+  Model_AspectDum_r2Nagelkerke = Model_AspectDum_intercept
+  Model_AspectDum_aic = Model_AspectDum_intercept
+  
+  for (b in (1:Nboot)) {
+    tmp_AspectDum = rbind((data_AspectDum[data_AspectDum$Class==1,][sample(nrow(data_AspectDum[data_AspectDum$Class==1,]), Nsamples, replace=F),]),
+                          (data_AspectDum[data_AspectDum$Class==0,][sample(nrow(data_AspectDum[data_AspectDum$Class==0,]), Nsamples, replace=F),]))
+    Model_AspectDum_Samples_train[b,2] = paste(as.vector(tmp_AspectDum$ID),collapse="-")
+    for (v in (1:nVar_AspectDum)) { 
+      cols = c("Class",Var_AspectDum[2+v])
+      tmp_AspectDumv = tmp_AspectDum[,cols,with=F]
+      tmp_AspectDumv = na.omit(tmp_AspectDumv)
+      m_AspectDum = glm(formula=Class ~ ., family=binomial(link="logit"), data=tmp_AspectDumv)
+      tmp_AspectDum_coef = as.data.frame(coef(summary(m_AspectDum))[,1])
+      for (p in (1:(nrow(tmp_AspectDum_coef)))) {Model_AspectDum_coef[rownames(tmp_AspectDum_coef)[p],b] = tmp_AspectDum_coef[rownames(tmp_AspectDum_coef)[p],1]}
+      tmp_AspectDum_coef.se = as.data.frame(coef(summary(m_AspectDum))[,2])
+      for (p in (1:(nrow(tmp_AspectDum_coef.se)))) {Model_AspectDum_coef.se[rownames(tmp_AspectDum_coef.se)[p],b] = tmp_AspectDum_coef.se[rownames(tmp_AspectDum_coef.se)[p],1]}
+      tmp_AspectDum_coef.pvalue = as.data.frame(coef(summary(m_AspectDum))[,4])
+      for (p in (1:nrow(tmp_AspectDum_coef.pvalue))) {Model_AspectDum_coef.pvalue[rownames(tmp_AspectDum_coef.pvalue)[p],b] = tmp_AspectDum_coef.pvalue[rownames(tmp_AspectDum_coef.pvalue)[p],1]}
+      tmp_AspectDum_lrtest = lrtest(m_AspectDum) 
+      Model_AspectDum_LRchi2[v,b] = as.numeric(tmp_AspectDum_lrtest[2,4])
+      Model_AspectDum_LRchi2.pvalue[v,b] = as.numeric(tmp_AspectDum_lrtest[2,5])
+      tmp_AspectDum_pR2 = pR2(m_AspectDum)
+      Model_AspectDum_r2Nagelkerke[v,b] = as.numeric(tmp_AspectDum_pR2[6])
+      Model_AspectDum_aic[v,b] = as.numeric(m_AspectDum$aic)
+      print(paste("boot =", b, "- Var_AspectDum =", dirdum))
+    }
+  }
+  
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectDum-",dirdum,"_Samples_train.csv", sep="")
+  write.csv2 (Model_AspectDum_Samples_train,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectDum-",dirdum,"_coef.csv", sep="")
+  write.csv2 (Model_AspectDum_coef,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectDum-",dirdum,"_coef.se.csv", sep="")
+  write.csv2 (Model_AspectDum_coef.se,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectDum-",dirdum,"_coef.pvalue.csv", sep="")
+  write.csv2 (Model_AspectDum_coef.pvalue,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectDum-",dirdum,"_intercept.csv", sep="")
+  write.csv2 (Model_AspectDum_LRchi2,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectDum-",dirdum,"_LRchi2.pvalue.csv", sep="")
+  write.csv2 (Model_AspectDum_LRchi2.pvalue,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectDum-",dirdum,"_r2Nagelkerke.csv", sep="")
+  write.csv2 (Model_AspectDum_r2Nagelkerke,file)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Disc_AspectDum-",dirdum,"_aic.csv", sep="")
+  write.csv2 (Model_AspectDum_aic,file)
+  
+  VarEstat_AspectDumAll = c("mean.coef_param","CIinf mean.coef_param","CIsup coef_param",
+                            "mean.coef.p-value","CIinf mean.coef.p-value","CIsup mean.coef.p-value",
+                            "mean.LL0","CIinf mean.LL0","CIsup mean.LL0",
+                            "mean.LLMx","CIinf mean.LLMx","CIsup mean.LLMx",
+                            "mean.LRchi2_MXm0","CIinf mean.LRchi2_MXm0","CIsup mean_MXm0.LRchi2",
+                            "mean.LRchi2_MXm0.pvalue","CIinf mean.LRchi2_MXm0.pvalue","CIsup mean_MXm0.LRchi2.pvalue",
+                            "mean.r2Nagelkerke","CIinf mean.r2Nagelkerke", "CIsup mean.r2Nagelkerke",
+                            "mean.aic","CIinf mean.aic", "CIsup mean.aic")
+  
+  Model_AspectDumAll = data.frame(matrix(NA, ncol=length(VarEstat_AspectDumAll), nrow=(3)))
+  colnames(Model_AspectDumAll) = c(VarEstat_AspectDumAll)
+  rownames(Model_AspectDumAll) = c("(Intercept)", "AspectDum1", "AspectDum")
+  
+  variv = Var_AspectDum[v+2]
+  varDesag = c("(Intercept)", "AspectDum1", "AspectDum")
+  for (vdes in 1:2) {
+    varDesagNom = varDesag[vdes]
+    Model_AspectDumAll[varDesagNom,1] = mean(as.numeric(Model_AspectDum_coef[varDesagNom,]))
+    Model_AspectDumAll[varDesagNom,2] = mean(as.numeric(Model_AspectDum_coef[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_AspectDum_coef[varDesagNom,]))/sqrt(Nboot))
+    Model_AspectDumAll[varDesagNom,3] = mean(as.numeric(Model_AspectDum_coef[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_AspectDum_coef[varDesagNom,]))/sqrt(Nboot))
+    Model_AspectDumAll[varDesagNom,4] = mean(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,]))
+    Model_AspectDumAll[varDesagNom,5] = mean(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,])) - (qnorm(0.975)*sd(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,]))/sqrt(Nboot))
+    Model_AspectDumAll[varDesagNom,6] = mean(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,])) + (qnorm(0.975)*sd(as.numeric(Model_AspectDum_coef.pvalue[varDesagNom,]))/sqrt(Nboot))
+    print(varDesagNom)
+  }
+  Model_AspectDumAll[variv,13] = mean(as.numeric(Model_AspectDum_LRchi2[variv,]))
+  Model_AspectDumAll[variv,14] = mean(as.numeric(Model_AspectDum_LRchi2[variv,]) - (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_LRchi2[variv,])))/sqrt(Nboot))))
+  Model_AspectDumAll[variv,15] = mean(as.numeric(Model_AspectDum_LRchi2[variv,]) + (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_LRchi2[variv,])))/sqrt(Nboot))))
+  Model_AspectDumAll[variv,16] = mean(as.numeric(Model_AspectDum_LRchi2.pvalue[variv,]))
+  Model_AspectDumAll[variv,17] = mean(as.numeric(Model_AspectDum_LRchi2.pvalue[variv,])) - (qnorm(0.975)*sd(as.numeric(Model_AspectDum_LRchi2.pvalue[variv,]))/sqrt(Nboot))
+  Model_AspectDumAll[variv,18] = mean(as.numeric(Model_AspectDum_LRchi2.pvalue[variv,])) + (qnorm(0.975)*sd(as.numeric(Model_AspectDum_LRchi2.pvalue[variv,]))/sqrt(Nboot))
+  Model_AspectDumAll[variv,19] = mean(as.numeric(Model_AspectDum_r2Nagelkerke[variv,]))
+  Model_AspectDumAll[variv,20] = mean(as.numeric(Model_AspectDum_r2Nagelkerke[variv,])) - (qnorm(0.975)*sd(as.numeric(Model_AspectDum_r2Nagelkerke[variv,]))/sqrt(Nboot))
+  Model_AspectDumAll[variv,21] = mean(as.numeric(Model_AspectDum_r2Nagelkerke[variv,])) + (qnorm(0.975)*sd(as.numeric(Model_AspectDum_r2Nagelkerke[variv,]))/sqrt(Nboot))
+  Model_AspectDumAll[variv,22] = mean(as.numeric(Model_AspectDum_aic[variv,]))
+  Model_AspectDumAll[variv,23] = mean(as.numeric(Model_AspectDum_aic[variv,])) - (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_aic[variv,])))/sqrt(Nboot)))
+  Model_AspectDumAll[variv,24] = mean(as.numeric(Model_AspectDum_aic[variv,])) + (qnorm(0.975)*((sd(as.numeric(Model_AspectDum_aic[variv,])))/sqrt(Nboot)))
+  
+  print(variv)
+  
+  
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_Disc_AspectDum-",dirdum,".csv", sep="")
+  write.csv2 (Model_AspectDumAll, file ) 
+}
