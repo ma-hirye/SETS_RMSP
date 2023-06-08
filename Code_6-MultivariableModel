@@ -1,0 +1,612 @@
+################################################ Estat - MM (Multivariable Model) ---------------------------------
+rm(list=ls())
+gc()
+
+library(data.table)
+library(stats) #aov test
+library(lmtest) #lr test
+library(pscl) #R2
+library(ggplot2)
+library(glmulti)
+library(oddsratio)
+
+#rm(list=ls()[! ls() %in% c("pts_data")])
+pts_data = read.csv2 ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/DataAll_Train_PTS.csv", header=T)
+
+data = as.data.frame(pts_data)
+
+data$Sbn2010 = as.factor(data$Sbn2010)
+
+data$SubnChn [data$SubnChn==2] = 0
+data$SubnChn = as.factor(data$SubnChn)
+
+data$Suscep2e3 [data$Suscep==1] = 0
+data$Suscep2e3 [data$Suscep==2] = 1
+data$Suscep2e3 [data$Suscep==3] = 1
+data$Suscep2e3 = as.factor(data$Suscep2e3)
+
+data$Suscep3 [data$Suscep==1] = 0
+data$Suscep3 [data$Suscep==2] = 0
+data$Suscep3 [data$Suscep==3] = 1
+data$Suscep3 = as.factor(data$Suscep3)
+
+data$Suscep = as.factor(data$Suscep)
+unique(data$Suscep)
+
+tab_class = as.data.frame(data$Class)
+names(tab_class) = c("Class")
+tab_class$Cl = NA
+tab_class$Cl[tab_class$Class=="yes"] = 1
+tab_class$Cl[tab_class$Class=="no"] = 0
+data$Class = as.factor(tab_class$Cl)
+rm(tab_class)
+
+data$AspectD = NA
+data$AspectD [is.na(data$Aspect)] = "Flat"
+data$AspectD [data$Aspect==0] = "N"
+data$AspectD [data$Aspect>=(337.5)| data$Aspect<(22.5)] = "N"
+data$AspectD [data$Aspect>=(22.5) & data$Aspect<(67.5)] = "NE"
+data$AspectD [data$Aspect>=(67.5) & data$Aspect<(112.5)] = "E"
+data$AspectD [data$Aspect>=(112.5) & data$Aspect<(157.5)] = "SE"
+data$AspectD [data$Aspect>=(157.5) & data$Aspect<(202.5)] = "S"
+data$AspectD [data$Aspect>=(202.5) & data$Aspect<(247.5)] = "SW"
+data$AspectD [data$Aspect>=(247.5) & data$Aspect<(292.5)] = "W"
+data$AspectD [data$Aspect>=(292.5) & data$Aspect<(337.5)] = "NW"
+data$AspectD = as.factor(data$AspectD)
+unique(data$AspectD)
+
+data$AspectDN = 0
+data$AspectDN [data$AspectD=="N"] = 1
+data$AspectDN = as.factor(data$AspectDN)
+data$AspectDNE = 0
+data$AspectDNE [data$AspectD=="NE"] = 1
+data$AspectDNE = as.factor(data$AspectDNE)
+data$AspectDE = 0
+data$AspectDE [data$AspectD=="E"] = 1
+data$AspectDE = as.factor(data$AspectDE)
+data$AspectDSE = 0
+data$AspectDSE [data$AspectD=="SE"] = 1
+data$AspectDSE = as.factor(data$AspectDSE)
+data$AspectDS = 0
+data$AspectDS [data$AspectD=="S"] = 1
+data$AspectDS = as.factor(data$AspectDS)
+data$AspectDSW = 0
+data$AspectDSW [data$AspectD=="SW"] = 1
+data$AspectDSW = as.factor(data$AspectDSW)
+data$AspectDW = 0
+data$AspectDW [data$AspectD=="W"] = 1
+data$AspectDW = as.factor(data$AspectDW)
+data$AspectDNW = 0
+data$AspectDNW [data$AspectD=="NW"] = 1
+data$AspectDNW = as.factor(data$AspectDNW)
+data$AspectDFlat = 0
+data$AspectDFlat [data$AspectD=="Flat"] = 1
+data$AspectDFlat = as.factor(data$AspectDFlat)
+
+data$AspectD4 = NA
+data$AspectD4 [is.na(data$Aspect)] = "0" #"Flat"
+data$AspectD4 [data$Aspect==0] =  "1" #"N"
+data$AspectD4 [data$Aspect>=(315)| data$Aspect<(45)] =  "1" #"N"
+data$AspectD4 [data$Aspect>=(45) & data$Aspect<(135)] =  "2" #"E"
+data$AspectD4 [data$Aspect>=(135) & data$Aspect<(225)] =  "3" #"S"
+data$AspectD4 [data$Aspect>=(225) & data$Aspect<(315)] =  "4" #"W"
+data$AspectD4 = as.factor(data$AspectD4)
+unique(data$AspectD4)
+
+data$AspectD4Flat = 0
+data$AspectD4Flat [data$AspectD=="Flat"] = 1
+data$AspectD4Flat = as.factor(data$AspectD4Flat)
+data$AspectD4N = 0
+data$AspectD4N [data$AspectD=="N"] = 1
+data$AspectD4N = as.factor(data$AspectD4N)
+data$AspectD4E = 0
+data$AspectD4E [data$AspectD=="E"] = 1
+data$AspectD4E = as.factor(data$AspectD4E)
+data$AspectD4S = 0
+data$AspectD4S [data$AspectD=="S"] = 1
+data$AspectD4S = as.factor(data$AspectD4S)
+data$AspectD4W = 0
+data$AspectD4W [data$AspectD=="W"] = 1
+data$AspectD4W = as.factor(data$AspectD4W)
+
+data = droplevels(data)
+
+rm(list=ls()[! ls() %in% c("pts_data", "data")])
+
+Ano = 2010
+Nsamples = 1000
+Nboot = 1000
+#Nboot=2
+
+Variav_M1A = c("ID", "Class",
+              "Rn0d14d",
+              "Slope","Veg2010",
+              "MnI2010",
+              "Sbn2010",
+              "Dm2010",
+              "PSMF10","PSEsg10")
+nVariav_M1A = length(Variav_M1A)-1
+Variav_M1A_Desag = c("Rn0d14d",
+                    "Slope","Veg2010",
+                    "MnI2010",
+                    "Sbn2010","Sbn20101",
+                    "Dm2010",
+                    "PSMF10","PSEsg10")
+nVariav_M1A_Desag = length(Variav_M1A_Desag)
+
+data_M1A = data.table(data[,Variav_M1A])
+setkeyv(data_M1A,c("Class"))
+data_M1A = na.omit(data_M1A)
+table(data_M1A$Class)
+
+M1A_Samples_train = data.frame(Boot=1:Nboot, Samples=NA)
+
+M1A_coef = data.frame(matrix(NA, ncol=Nboot, nrow=1+nVariav_M1A_Desag), row.names=c("(Intercept)",Variav_M1A_Desag))
+colnames(M1A_coef) = paste("Boot",1:Nboot, sep=" ")
+M1A_coef.se = M1A_coef
+M1A_coef.pvalue = M1A_coef
+M1A_oddsratio = M1A_coef
+
+M1Av_LogLik_lM1Av = M1A_coef
+M1Av_LogLik_l0 = M1A_coef
+M1Av_LRchi2_M1Avm0 = M1A_coef
+M1Av_LRchi2_M1Avm0.pvalue = M1A_coef
+M1Av_aic = M1A_coef
+
+M1A_LogLik_lm0 = as.numeric() 
+M1A_LogLik_lM1A = as.numeric() 
+M1A_LRchi2_M1Am0 = as.numeric()
+M1A_LRchi2_M1Am0.pvalue = as.numeric()
+M1A_r2Nagelkerke = as.numeric()
+M1A_aic = as.numeric()
+
+topAIC = data.frame(matrix(NA, ncol=5, nrow=0))
+colnames(topAIC) = c("Boot","AIC_Rank","Model","AIC","Weights" )
+topBIC = data.frame(matrix(NA, ncol=5, nrow=0))
+colnames(topBIC) = c("Boot","BIC_Rank","Model","BIC","Weights" ) 
+
+incr = list(Rn0d14d=10,Slope=1,Veg2010=0.1,MnI2010=100, Sbn20101=1, Dm2010=1,PSMF10=0.1,PSEsg10=0.1)
+
+#b=1
+for (b in (1:Nboot)) {
+  tmp_M1A = rbind((data_M1A[data_M1A$Class==1,][sample(nrow(data_M1A[data_M1A$Class==1,]), Nsamples, replace=F),]),
+                 (data_M1A[data_M1A$Class==0,][sample(nrow(data_M1A[data_M1A$Class==0,]), Nsamples, replace=F),]))
+  Samples_train = as.vector(tmp_M1A$ID)
+  M1A_Samples_train[b,2] = paste(Samples_train,collapse="-")
+  tmp_M1A = tmp_M1A[,-1]
+  m_M1A=glm(formula=Class ~ ., family=binomial(link="logit"), data=tmp_M1A)
+  tmp_M1A_coef = as.data.frame(coef(summary(m_M1A))[,1])
+  for (v in (1:(nrow(tmp_M1A_coef)))) {M1A_coef[rownames(tmp_M1A_coef)[v],b] = tmp_M1A_coef[rownames(tmp_M1A_coef)[v],1]}
+  tmp_M1A_coef.se = as.data.frame(coef(summary(m_M1A))[,2])
+  for (v in (1:(nrow(tmp_M1A_coef.se)))) {M1A_coef.se[rownames(tmp_M1A_coef.se)[v],b] = tmp_M1A_coef.se[rownames(tmp_M1A_coef.se)[v],1]}
+  tmp_M1A_coef.pvalue = as.data.frame(coef(summary(m_M1A))[,4])
+  for (v in (1:nrow(tmp_M1A_coef.pvalue))) {M1A_coef.pvalue[rownames(tmp_M1A_coef.pvalue)[v],b] = tmp_M1A_coef.pvalue[rownames(tmp_M1A_coef.pvalue)[v],1]}
+  tmp_M1A_lrtest = lrtest(m_M1A) 
+  M1A_LogLik_lM1A [b] = as.numeric(tmp_M1A_lrtest[1,2])
+  M1A_LogLik_lm0 [b] = as.numeric(tmp_M1A_lrtest[2,2])
+  M1A_LRchi2_M1Am0 [b] = as.numeric(tmp_M1A_lrtest[2,4])
+  M1A_LRchi2_M1Am0.pvalue [b] = as.numeric(tmp_M1A_lrtest[2,5])
+  tmp_M1A_pR2 = pR2(m_M1A)
+  M1A_r2Nagelkerke[b] = as.numeric(tmp_M1A_pR2[6])
+  M1A_aic[b] = as.numeric(m_M1A$aic)
+  or = or_glm(tmp_M1A, m_M1A, incr, CI = 0.95)
+  or = as.data.frame(or)
+  rownames(or) = or[,1]
+  for (v in (1:nrow(or))) {M1A_oddsratio[rownames(or)[v],b] = or[rownames(or)[v],"oddsratio"]}
+  for (v in (1:(nVariav_M1A-1))){
+    variav = c("Class", Variav_M1A[v+2])
+    tmp_M1Av = tmp_M1A[,..variav]
+    m_M1Av=glm(formula=Class ~ ., family=binomial(link="logit"), data=tmp_M1Av)  
+    tmp_M1A_lrtest_M1Avm0 = lrtest(m_M1Av)
+    M1Av_LogLik_lM1Av [variav[-1],b] = as.numeric(tmp_M1A_lrtest_M1Avm0[1,2])
+    M1Av_LogLik_l0 [variav[-1],b] = as.numeric(tmp_M1A_lrtest_M1Avm0[2,2])
+    M1Av_LRchi2_M1Avm0 [variav[-1],b] = as.numeric(tmp_M1A_lrtest_M1Avm0[2,4])
+    M1Av_LRchi2_M1Avm0.pvalue [variav[-1],b] = as.numeric(tmp_M1A_lrtest_M1Avm0[2,5])
+    M1Av_aic[variav[-1],b] = as.numeric(m_M1Av$aic)
+  }
+  AIC_f1 = glmulti(Class ~ ., data=tmp_M1A, family=binomial, 
+                   level=1, crit=aic, fitfunc=glm, method="h",
+                   confsetsize=256, plotty=T, report=TRUE, name="AIC_glmulti")
+  tmp_M1A_topAIC <- glmulti::weightable(AIC_f1)
+  tmp_M1A_topAIC$Boot = b
+  tmp_M1A_topAIC$AIC_Rank = c(1:nrow(tmp_M1A_topAIC))
+  colnames(tmp_M1A_topAIC) = c("Model","AIC","Weights","Boot","AIC_Rank")
+  topAIC = rbind(topAIC,tmp_M1A_topAIC)
+  BIC_f1 = glmulti(Class ~ ., data=tmp_M1A, family=binomial, 
+                   level=1, crit=bic, fitfunc=glm, method="h",
+                   confsetsize=256, plotty=T, report=TRUE, name="BIC_glmulti")
+  tmp_M1A_topBIC <- glmulti::weightable(BIC_f1)
+  tmp_M1A_topBIC$Boot = b
+  tmp_M1A_topBIC$BIC_Rank = c(1:nrow(tmp_M1A_topBIC))
+  topBIC = rbind(topBIC,tmp_M1A_topBIC)
+  print(paste("Boot=", b, " - Variav=", variav[-1]))
+}
+
+write.csv2 (M1A_Samples_train,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_Samples_train.csv")
+write.csv2 (M1A_coef,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_coef.csv")
+write.csv2 (M1A_coef.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_coef.se.csv")
+write.csv2 (M1A_coef.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_coef.pvalue.csv")
+write.csv2 (M1A_LogLik_lm0,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_LogLik_l0.csv")
+write.csv2 (M1A_LogLik_lM1A,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_LogLik_lM1A.csv")
+write.csv2 (M1A_LRchi2_M1Am0,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_LRchi2_M1Am0.csv")
+write.csv2 (M1A_LRchi2_M1Am0.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_LRchi2_M1Am0.pvalue.csv")
+write.csv2 (M1A_r2Nagelkerke,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_r2Nagelkerke.csv")
+write.csv2 (M1Av_LogLik_lM1Av,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1Av_LogLik_lM1Av.csv")
+write.csv2 (M1Av_LogLik_l0,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1Av_LogLik_l0.csv")
+write.csv2 (M1Av_LRchi2_M1Avm0,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1Av_LRchi2_M1Avm0.csv")
+write.csv2 (M1Av_LRchi2_M1Avm0.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1Av_LRchi2_M1Avm0.pvalue.csv")
+write.csv2 (M1A_aic,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_aic.csv")
+write.csv2 (M1Av_aic,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1Av_aic.csv")
+write.csv2 (topAIC, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_AICf1.csv")
+write.csv2 (topBIC, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_BICf1.csv")
+write.csv2 (M1A_oddsratio, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_oddsratio.csv")
+
+VarEstatAll_M = c("mean.coef_param","CIinf mean.coef_param","CIsup coef_param",
+                  "mean.coef.p-value","CIinf mean.coef.p-value","CIsup mean.coef.p-value",
+                  "mean.LL0","CIinf mean.LL0","CIsup mean.LL0",
+                  "mean.LLMx","CIinf mean.LLMx","CIsup mean.LLMx",
+                  "mean.LRchi2_MXm0","CIinf mean.LRchi2_MXm0","CIsup mean_MXm0.LRchi2",
+                  "mean.LRchi2_MXm0.pvalue","CIinf mean.LRchi2_MXm0.pvalue","CIsup mean_MXm0.LRchi2.pvalue",
+                  "mean.r2Nagelkerke","CIinf mean.r2Nagelkerke", "CIsup mean.r2Nagelkerke",
+                  "mean.aic","CIinf mean.aic", "CIsup mean.aic",
+                  "mean.oddsratio","CIinf mean.oddsratio", "CIsup mean.oddsratio")
+
+M1A_All = data.frame(matrix(NA, ncol=length(VarEstatAll_M), nrow=1+nVariav_M1A_Desag+1))
+colnames(M1A_All) = c(VarEstatAll_M)
+rownames(M1A_All) = c("(Intercept)",Variav_M1A_Desag,"model M1A")
+
+
+for (v in 1:nrow(M1A_coef)) {
+  M1A_All[v,1] = mean(as.numeric(M1A_coef[v,]))
+  M1A_All[v,2] = mean(as.numeric(M1A_coef[v,])) - (qnorm(0.975)*((sd(as.numeric(M1A_coef[v,])))/sqrt(Nboot)))
+  M1A_All[v,3] = mean(as.numeric(M1A_coef[v,])) + (qnorm(0.975)*((sd(as.numeric(M1A_coef[v,])))/sqrt(Nboot)))
+  
+  M1A_All[v,4] = mean(as.numeric(M1A_coef.pvalue[v,]))
+  M1A_All[v,5] = mean(as.numeric(M1A_coef.pvalue[v,])) - (qnorm(0.975)*((sd(as.numeric(M1A_coef.pvalue[v,])))/sqrt(Nboot)))
+  M1A_All[v,6] = mean(as.numeric(M1A_coef.pvalue[v,])) + (qnorm(0.975)*((sd(as.numeric(M1A_coef.pvalue[v,])))/sqrt(Nboot)))
+  
+  M1A_All[v,7] = mean(as.numeric(M1Av_LogLik_l0[v,]))
+  M1A_All[v,8] = mean(as.numeric(M1Av_LogLik_l0[v,])) - (qnorm(0.975)*((sd(as.numeric(M1Av_LogLik_l0[v,])))/sqrt(Nboot)))
+  M1A_All[v,9] = mean(as.numeric(M1Av_LogLik_l0[v,])) + (qnorm(0.975)*((sd(as.numeric(M1Av_LogLik_l0[v,])))/sqrt(Nboot)))
+  
+  M1A_All[v,10] = mean(as.numeric(M1Av_LogLik_lM1Av[v,]))
+  M1A_All[v,11] = mean(as.numeric(M1Av_LogLik_lM1Av[v,])) - (qnorm(0.975)*((sd(as.numeric(M1Av_LogLik_lM1Av[v,])))/sqrt(Nboot)))
+  M1A_All[v,12] = mean(as.numeric(M1Av_LogLik_lM1Av[v,])) + (qnorm(0.975)*((sd(as.numeric(M1Av_LogLik_lM1Av[v,])))/sqrt(Nboot)))
+  
+  M1A_All[v,13] = mean(as.numeric(M1Av_LRchi2_M1Avm0[v,]))
+  M1A_All[v,14] = mean(as.numeric(M1Av_LRchi2_M1Avm0[v,])) - (qnorm(0.975)*((sd(as.numeric(M1Av_LRchi2_M1Avm0[v,])))/sqrt(Nboot)))
+  M1A_All[v,15] = mean(as.numeric(M1Av_LRchi2_M1Avm0[v,])) + (qnorm(0.975)*((sd(as.numeric(M1Av_LRchi2_M1Avm0[v,])))/sqrt(Nboot)))
+  
+  M1A_All[v,16] = mean(as.numeric(M1Av_LRchi2_M1Avm0.pvalue[v,]))
+  M1A_All[v,17] = mean(as.numeric(M1Av_LRchi2_M1Avm0.pvalue[v,])) - (qnorm(0.975)*((sd(as.numeric(M1Av_LRchi2_M1Avm0.pvalue[v,])))/sqrt(Nboot)))
+  M1A_All[v,18] = mean(as.numeric(M1Av_LRchi2_M1Avm0.pvalue[v,])) + (qnorm(0.975)*((sd(as.numeric(M1Av_LRchi2_M1Avm0.pvalue[v,])))/sqrt(Nboot)))
+  
+  M1A_All[v,22] = mean(as.numeric(M1Av_aic[v,]))
+  M1A_All[v,23] = mean(as.numeric(M1Av_aic[v,])) - (qnorm(0.975)*((sd(as.numeric(M1Av_aic[v,])))/sqrt(Nboot)))
+  M1A_All[v,24] = mean(as.numeric(M1Av_aic[v,])) + (qnorm(0.975)*((sd(as.numeric(M1Av_aic[v,])))/sqrt(Nboot)))
+  
+  M1A_All[v,25] = mean(as.numeric(M1A_oddsratio[v,]))
+  M1A_All[v,26] = mean(as.numeric(M1A_oddsratio[v,])) - (qnorm(0.975)*((sd(as.numeric(M1A_oddsratio[v,])))/sqrt(Nboot)))
+  M1A_All[v,27] = mean(as.numeric(M1A_oddsratio[v,])) + (qnorm(0.975)*((sd(as.numeric(M1A_oddsratio[v,])))/sqrt(Nboot)))
+  
+  print(v)
+}
+
+M1A_All[1+nVariav_M1A_Desag+1,7] = mean(M1A_LogLik_lm0)
+M1A_All[1+nVariav_M1A_Desag+1,8] = mean(M1A_LogLik_lm0) - (qnorm(0.975)*((sd(as.numeric(M1A_LogLik_lm0)))/sqrt(Nboot)))
+M1A_All[1+nVariav_M1A_Desag+1,9] = mean(M1A_LogLik_lm0) + (qnorm(0.975)*((sd(as.numeric(M1A_LogLik_lm0)))/sqrt(Nboot)))
+
+M1A_All[1+nVariav_M1A_Desag+1,10] = mean(M1A_LogLik_lM1A)
+M1A_All[1+nVariav_M1A_Desag+1,11] = mean(M1A_LogLik_lM1A) - (qnorm(0.975)*((sd(as.numeric(M1A_LogLik_lM1A)))/sqrt(Nboot)))
+M1A_All[1+nVariav_M1A_Desag+1,12] = mean(M1A_LogLik_lM1A) + (qnorm(0.975)*((sd(as.numeric(M1A_LogLik_lM1A)))/sqrt(Nboot)))
+
+M1A_All[1+nVariav_M1A_Desag+1,13] = mean(M1A_LRchi2_M1Am0)
+M1A_All[1+nVariav_M1A_Desag+1,14] = mean(M1A_LRchi2_M1Am0) - (qnorm(0.975)*((sd(as.numeric(M1A_LRchi2_M1Am0)))/sqrt(Nboot)))
+M1A_All[1+nVariav_M1A_Desag+1,15] = mean(M1A_LRchi2_M1Am0) + (qnorm(0.975)*((sd(as.numeric(M1A_LRchi2_M1Am0)))/sqrt(Nboot)))
+
+M1A_All[1+nVariav_M1A_Desag+1,16] = mean(M1A_LRchi2_M1Am0.pvalue)
+M1A_All[1+nVariav_M1A_Desag+1,17] = mean(M1A_LRchi2_M1Am0.pvalue) - (qnorm(0.975)*((sd(as.numeric(M1A_LRchi2_M1Am0.pvalue)))/sqrt(Nboot)))
+M1A_All[1+nVariav_M1A_Desag+1,18] = mean(M1A_LRchi2_M1Am0.pvalue) + (qnorm(0.975)*((sd(as.numeric(M1A_LRchi2_M1Am0.pvalue)))/sqrt(Nboot)))
+
+M1A_All[1+nVariav_M1A_Desag+1,19] = mean(M1A_r2Nagelkerke)
+M1A_All[1+nVariav_M1A_Desag+1,20] = mean(M1A_r2Nagelkerke) - (qnorm(0.975)*((sd(as.numeric(M1A_r2Nagelkerke)))/sqrt(Nboot)))
+M1A_All[1+nVariav_M1A_Desag+1,21] = mean(M1A_r2Nagelkerke) + (qnorm(0.975)*((sd(as.numeric(M1A_r2Nagelkerke)))/sqrt(Nboot)))
+
+M1A_All[1+nVariav_M1A_Desag+1,22] = mean(M1A_aic)
+M1A_All[1+nVariav_M1A_Desag+1,23] = mean(M1A_aic) - (qnorm(0.975)*((sd(as.numeric(M1A_aic)))/sqrt(Nboot)))
+M1A_All[1+nVariav_M1A_Desag+1,24] = mean(M1A_aic) + (qnorm(0.975)*((sd(as.numeric(M1A_aic)))/sqrt(Nboot)))
+
+write.csv2 (M1A_All,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_M1A.csv")
+
+
+
+
+###################################### EM 3d plot - M1A ====
+library(ggplot2)
+
+rm(list=ls()[! ls() %in% c("pts_data", "data")])
+
+#Mean values for RMSP
+Rn0d14d = 83.17
+Slope = 7.0921
+Veg2010 = 0.1004
+MnI2010 = 2647
+Sbn2010_0 = 0
+Sbn2010_1 = 1
+Dm2010 = 13.323 
+PSMF10 = 0.09
+PSEsg10 = 0.26
+
+#Mean parameters
+P_Intercept = -3.5869
+P_Rn0d14d = 0.0163
+P_Slope = 0.0621
+P_Veg2010 = 1.7894
+P_MnI2010 = -0.0001
+P_Sbn2010 = 1.5335
+P_Dm2010 = 0.0370
+P_PSMF10 = 1.1494
+P_PSEsg10 = -1.7180
+
+varx = c("Dm2010")
+max_x = 40
+val_x = seq(1,max_x,1)
+
+vary = c("Slope")
+max_y = 80
+val_y = seq(1,max_y,(max_y/max_x))
+
+f0 <- function(x, y) { 
+  r = exp(P_Intercept + 
+            P_Rn0d14d*Rn0d14d + 
+            P_Slope*y + 
+            P_Veg2010*Veg2010 + 
+            P_MnI2010*MnI2010 +
+            P_Sbn2010*Sbn2010_0 + 
+            P_Dm2010*x +
+            P_PSMF10*PSMF10 + 
+            P_PSEsg10*PSEsg10)
+}
+Val_grid_0 = outer(val_x, val_y, f0)
+max(Val_grid_0)
+par(fg=NA, col="black")
+tit = paste("odds ratio", "\n Regular Settlements")
+p = filled.contour(x=val_x,y=val_y,z=Val_grid_0, 
+                   color.palette=colorRampPalette(c("Turquoise", "LightCoral")),
+                   plot.title=title(xlab=varx, ylab=vary), 
+                   nlevels=200,
+                   plot.axes = {axis(side=1, at=val_y, labels=val_y)
+                     axis(side=2, at=val_x, labels=val_x) },
+                   key.title=title(main="odds ratio"),
+                   key.axes = axis(4, seq(0, 200, by = 10)))
+
+
+f1 <- function(x, y) { 
+  r = exp(P_Intercept + 
+            P_Rn0d14d*Rn0d14d + 
+            P_Slope*y + 
+            P_Veg2010*Veg2010 + 
+            P_MnI2010*MnI2010 +
+            P_Sbn2010*Sbn2010_1 + 
+            P_Dm2010*x +
+            P_PSMF10*PSMF10 + 
+            P_PSEsg10*PSEsg10)
+}
+Val_grid_1 = outer(val_x, val_y, f1)
+max(Val_grid_1)
+par(fg=NA, col="black")
+tit = paste("odds ratio", "\n Subnormal Settlements")
+p = filled.contour(x=val_x,y=val_y,z=Val_grid_1, 
+                   color.palette=colorRampPalette(c("Turquoise", "LightCoral")),
+                   plot.title=title(xlab=varx, ylab=vary), 
+                   nlevels=200,
+                   plot.axes = {axis(side=1, at=val_y, labels=val_y)
+                     axis(side=2, at=val_x, labels=val_x) },
+                   key.title=title(main=tit),
+                   key.axes = axis(4, seq(0, 200, by = 10)))
+
+
+
+###################################### EM Risk Map - M1A ====
+library (raster)
+
+rm(list=ls()[! ls() %in% c("pts_data", "data")])
+
+Data_Slope_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_Slope_foc.tif")
+Data_Veg2010_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_Veg2010_foc.tif")
+Data_MeanInc2010_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_MeanInc2010_foc.tif")
+Data_Subn2010_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_Subn2010_foc.tif")
+Data_Dom2010_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_Dom2010_foc.tif")
+Data_SMF10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SMF10_foc.tif")
+Data_SEsg10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SEsg10_foc.tif")
+
+Rn0d14d = 83.17
+
+logits_raster = -3.5869 + 
+  0.0163*83.17 +
+  0.0621*Data_Slope_foc + 
+  1.7894*Data_Veg2010_foc +
+  -0.0001*Data_MeanInc2010_foc + 
+  1.5335*Data_Subn2010_foc +
+  0.0370*Data_Dom2010_foc + 
+  1.1494*Data_SMF10_foc + 
+  -1.7180*Data_SEsg10_foc
+
+logit2prob <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+prob_raster = logit2prob(logits_raster)
+plot(prob_raster)
+writeRaster (prob_raster, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/ModelM1A_ProbMap.tif", overwrite=F, datatype='FLT4S')
+
+
+
+
+
+
+########################################### EM (Evaluation Model) =================================
+rm(list=ls())
+gc()
+
+library(ROCR)
+library(data.table)
+
+# rm(list=ls()[! ls() %in% c("pts_data_test")])
+pts_data_test = read.csv2 ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/DataAll_Test_PTS.csv", header=T)
+
+Ano = 2010
+
+data_test = as.data.frame(pts_data_test)
+
+data_test$Sbn2010 = as.factor(data_test$Sbn2010)
+
+data_test$SubnChn [data_test$SubnChn==2] = 0
+data_test$SubnChn = as.factor(data_test$SubnChn)
+
+data_test$Suscep2e3 [data_test$Suscep==1] = 0
+data_test$Suscep2e3 [data_test$Suscep==2] = 1
+data_test$Suscep2e3 [data_test$Suscep==3] = 1
+data_test$Suscep2e3 = as.factor(data_test$Suscep2e3)
+
+data_test$Suscep3 [data_test$Suscep==1] = 0
+data_test$Suscep3 [data_test$Suscep==2] = 0
+data_test$Suscep3 [data_test$Suscep==3] = 1
+data_test$Suscep3 = as.factor(data_test$Suscep3)
+
+data_test$Suscep = as.factor(data_test$Suscep)
+unique(data_test$Suscep)
+
+tab_class = as.data.frame(data_test$Class)
+names(tab_class) = c("Class")
+tab_class$Cl = NA
+tab_class$Cl[tab_class$Class=="yes"] = 1
+tab_class$Cl[tab_class$Class=="no"] = 0
+data_test$Class = as.factor(tab_class$Cl)
+rm(tab_class)
+
+data_test$AspectD = NA
+data_test$AspectD [is.na(data_test$Aspect)] = "Flat"
+data_test$AspectD [data_test$Aspect==0] = "N"
+data_test$AspectD [data_test$Aspect>=(337.5)| data_test$Aspect<(22.5)] = "N"
+data_test$AspectD [data_test$Aspect>=(22.5) & data_test$Aspect<(67.5)] = "NE"
+data_test$AspectD [data_test$Aspect>=(67.5) & data_test$Aspect<(112.5)] = "E"
+data_test$AspectD [data_test$Aspect>=(112.5) & data_test$Aspect<(157.5)] = "SE"
+data_test$AspectD [data_test$Aspect>=(157.5) & data_test$Aspect<(202.5)] = "S"
+data_test$AspectD [data_test$Aspect>=(202.5) & data_test$Aspect<(247.5)] = "SW"
+data_test$AspectD [data_test$Aspect>=(247.5) & data_test$Aspect<(292.5)] = "W"
+data_test$AspectD [data_test$Aspect>=(292.5) & data_test$Aspect<(337.5)] = "NW"
+data_test$AspectD = as.factor(data_test$AspectD)
+unique(data_test$AspectD)
+
+data_test$AspectDN = 0
+data_test$AspectDN [data_test$AspectD=="N"] = 1
+data_test$AspectDN = as.factor(data_test$AspectDN)
+data_test$AspectDNE = 0
+data_test$AspectDNE [data_test$AspectD=="NE"] = 1
+data_test$AspectDNE = as.factor(data_test$AspectDNE)
+data_test$AspectDE = 0
+data_test$AspectDE [data_test$AspectD=="E"] = 1
+data_test$AspectDE = as.factor(data_test$AspectDE)
+data_test$AspectDSE = 0
+data_test$AspectDSE [data_test$AspectD=="SE"] = 1
+data_test$AspectDSE = as.factor(data_test$AspectDSE)
+data_test$AspectDS = 0
+data_test$AspectDS [data_test$AspectD=="S"] = 1
+data_test$AspectDS = as.factor(data_test$AspectDS)
+data_test$AspectDSW = 0
+data_test$AspectDSW [data_test$AspectD=="SW"] = 1
+data_test$AspectDSW = as.factor(data_test$AspectDSW)
+data_test$AspectDW = 0
+data_test$AspectDW [data_test$AspectD=="W"] = 1
+data_test$AspectDW = as.factor(data_test$AspectDW)
+data_test$AspectDNW = 0
+data_test$AspectDNW [data_test$AspectD=="NW"] = 1
+data_test$AspectDNW = as.factor(data_test$AspectDNW)
+data_test$AspectDFlat = 0
+data_test$AspectDFlat [data_test$AspectD=="Flat"] = 1
+data_test$AspectDFlat = as.factor(data_test$AspectDFlat)
+
+data_test$AspectD4 = NA
+data_test$AspectD4 [is.na(data_test$Aspect)] = "0" #"Flat"
+data_test$AspectD4 [data_test$Aspect==0] =  "1" #"N"
+data_test$AspectD4 [data_test$Aspect>=(315)| data_test$Aspect<(45)] =  "1" #"N"
+data_test$AspectD4 [data_test$Aspect>=(45) & data_test$Aspect<(135)] =  "2" #"E"
+data_test$AspectD4 [data_test$Aspect>=(135) & data_test$Aspect<(225)] =  "3" #"S"
+data_test$AspectD4 [data_test$Aspect>=(225) & data_test$Aspect<(315)] =  "4" #"W"
+data_test$AspectD4 = as.factor(data_test$AspectD4)
+unique(data_test$AspectD4)
+
+data_test$AspectD4N = 0
+data_test$AspectD4N [data_test$AspectD=="N"] = 1
+data_test$AspectD4N = as.factor(data_test$AspectD4N)
+data_test$AspectD4E = 0
+data_test$AspectD4E [data_test$AspectD=="E"] = 1
+data_test$AspectD4E = as.factor(data_test$AspectD4E)
+data_test$AspectD4S = 0
+data_test$AspectD4S [data_test$AspectD=="S"] = 1
+data_test$AspectD4S = as.factor(data_test$AspectD4S)
+data_test$AspectD4W = 0
+data_test$AspectD4W [data_test$AspectD=="W"] = 1
+data_test$AspectD4W = as.factor(data_test$AspectD4W)
+
+data_test = droplevels(data_test)
+
+rm(list=ls()[! ls() %in% c("pts_data_test", "data_test")])
+
+
+
+###################################### EM Roc - M1A =================================
+Variav_M1A_test = c("ID", "Class",
+                    "Rn0d14d",
+                    "Slope","Veg2010",
+                    "MnI2010",
+                    "Sbn2010",
+                    "Dm2010",
+                    "PSMF10","PSEsg10")
+nVariav_M1A_test = length(Variav_M1A_test)-1
+Variav_M1A_test_Desag = c("Rn0d14d",
+                          "Slope","Veg2010",
+                          "MnI2010",
+                          "Sbn20101",
+                          "Dm2010",
+                          "PSMF10","PSEsg10")
+nVariav_M1A_test_Desag = length(Variav_M1A_test_Desag)
+
+data_test_M1A = data.table(data_test[,Variav_M1A_test])
+setkeyv(data_test_M1A,c("Class"))
+table(data_test_M1A$Class)
+
+data_test_M1A_s = data_test_M1A
+data_test_M1A_s$Sbn2010 = as.numeric(as.character(data_test_M1A_s$Sbn2010))
+
+logits = -3.5869 + 
+  0.0163*data_test_M1A_s$Rn0d14d +
+  0.0621*data_test_M1A_s$Slope + 
+  1.7894*data_test_M1A_s$Veg2010 +
+  -0.0001*data_test_M1A_s$MnI2010 + 
+  1.5335*data_test_M1A_s$Sbn2010 +
+  0.0370*data_test_M1A_s$Dm2010 + 
+  1.1494*data_test_M1A_s$PSMF10 + 
+  -1.7180*data_test_M1A_s$PSEsg10
+
+#https://sebastiansauer.github.io/convert_logit2prob/ 
+logit2prob <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+prob_Logit = logit2prob(logits)
+pred_Logit <- prediction(prob_Logit, data_test_M1A$Class)
+perf_Logit <- performance(pred_Logit, measure = "tpr", x.measure = "fpr")
+plot(perf_Logit)
+auc_Logit <- performance(pred_Logit, measure = "auc")
+m.auc_Logit <- auc_Logit@y.values[[1]]
+m.auc_Logit
+
+library(pROC)
+plot(roc(data_test_M1A$Class, prob_Logit, direction="<"),
+     col="gray", lwd=3)
