@@ -1,0 +1,595 @@
+################################################ Estat - DE (Data Exploration) ---------------------------------
+rm(list=ls())
+gc()
+
+library(caret)
+library(ggplot2)
+
+#rm(list=ls()[! ls() %in% c("pts_data")])
+pts_data = read.csv2 ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/DataAll_PTS.csv", header=T)
+
+Ano = 2010
+
+data = as.data.frame(pts_data)
+
+data$Sbn2010 = as.factor(data$Sbn2010)
+
+data$SubnChn = as.factor(data$SubnChn)
+
+data$SubnChn2cl = data$SubnChn
+data$SubnChn2cl [data$SubnChn==2] = 0
+data$SubnChn2cl = as.factor(data$SubnChn2cl)
+
+data$Suscep2e3 [data$Suscep==1] = 0
+data$Suscep2e3 [data$Suscep==2] = 1
+data$Suscep2e3 [data$Suscep==3] = 1
+data$Suscep2e3 = as.factor(data$Suscep2e3)
+
+data$Suscep3 [data$Suscep==1] = 0
+data$Suscep3 [data$Suscep==2] = 0
+data$Suscep3 [data$Suscep==3] = 1
+data$Suscep3 = as.factor(data$Suscep3)
+
+data$Suscep = as.factor(data$Suscep)
+unique(data$Suscep)
+
+tab_class = as.data.frame(data$Class)
+names(tab_class) = c("Class")
+tab_class$Cl = NA
+tab_class$Cl[tab_class$Class=="yes"] = 1
+tab_class$Cl[tab_class$Class=="no"] = 0
+data$Class = as.factor(tab_class$Cl)
+rm(tab_class)
+
+data$AspectD = NA
+data$AspectD [is.na(data$Aspect)] = "Flat"
+data$AspectD [data$Aspect==0] = "N"
+data$AspectD [data$Aspect>=(337.5)| data$Aspect<(22.5)] = "N"
+data$AspectD [data$Aspect>=(22.5) & data$Aspect<(67.5)] = "NE"
+data$AspectD [data$Aspect>=(67.5) & data$Aspect<(112.5)] = "E"
+data$AspectD [data$Aspect>=(112.5) & data$Aspect<(157.5)] = "SE"
+data$AspectD [data$Aspect>=(157.5) & data$Aspect<(202.5)] = "S"
+data$AspectD [data$Aspect>=(202.5) & data$Aspect<(247.5)] = "SW"
+data$AspectD [data$Aspect>=(247.5) & data$Aspect<(292.5)] = "W"
+data$AspectD [data$Aspect>=(292.5) & data$Aspect<(337.5)] = "NW"
+data$AspectD = as.factor(data$AspectD)
+unique(data$AspectD)
+
+data$AspectDN = 0
+data$AspectDN [data$AspectD=="N"] = 1
+data$AspectDN = as.factor(data$AspectDN)
+data$AspectDNE = 0
+data$AspectDNE [data$AspectD=="NE"] = 1
+data$AspectDNE = as.factor(data$AspectDNE)
+data$AspectDE = 0
+data$AspectDE [data$AspectD=="E"] = 1
+data$AspectDE = as.factor(data$AspectDE)
+data$AspectDSE = 0
+data$AspectDSE [data$AspectD=="SE"] = 1
+data$AspectDSE = as.factor(data$AspectDSE)
+data$AspectDS = 0
+data$AspectDS [data$AspectD=="S"] = 1
+data$AspectDS = as.factor(data$AspectDS)
+data$AspectDSW = 0
+data$AspectDSW [data$AspectD=="SW"] = 1
+data$AspectDSW = as.factor(data$AspectDSW)
+data$AspectDW = 0
+data$AspectDW [data$AspectD=="W"] = 1
+data$AspectDW = as.factor(data$AspectDW)
+data$AspectDNW = 0
+data$AspectDNW [data$AspectD=="NW"] = 1
+data$AspectDNW = as.factor(data$AspectDNW)
+data$AspectDFlat = 0
+data$AspectDFlat [data$AspectD=="Flat"] = 1
+data$AspectDFlat = as.factor(data$AspectDFlat)
+
+data$AspectD4 = NA
+data$AspectD4 [is.na(data$Aspect)] = "0" #"Flat"
+data$AspectD4 [data$Aspect==0] =  "1" #"N"
+data$AspectD4 [data$Aspect>=(315)| data$Aspect<(45)] =  "1" #"N"
+data$AspectD4 [data$Aspect>=(45) & data$Aspect<(135)] =  "2" #"E"
+data$AspectD4 [data$Aspect>=(135) & data$Aspect<(225)] =  "3" #"S"
+data$AspectD4 [data$Aspect>=(225) & data$Aspect<(315)] =  "4" #"W"
+data$AspectD4 = as.factor(data$AspectD4)
+unique(data$AspectD4)
+
+data$AspectD4Flat = 0
+data$AspectD4Flat [data$AspectD=="Flat"] = 1
+data$AspectD4Flat = as.factor(data$AspectD4Flat)
+data$AspectD4N = 0
+data$AspectD4N [data$AspectD=="N"] = 1
+data$AspectD4N = as.factor(data$AspectD4N)
+data$AspectD4E = 0
+data$AspectD4E [data$AspectD=="E"] = 1
+data$AspectD4E = as.factor(data$AspectD4E)
+data$AspectD4S = 0
+data$AspectD4S [data$AspectD=="S"] = 1
+data$AspectD4S = as.factor(data$AspectD4S)
+data$AspectD4W = 0
+data$AspectD4W [data$AspectD=="W"] = 1
+data$AspectD4W = as.factor(data$AspectD4W)
+
+data = droplevels(data)
+
+rm(list=ls()[! ls() %in% c("pts_data","data")])
+
+
+########################################### DE - Rains ---------------------------------
+VarRain = c("Class",
+            "Rain0d",
+            "Ran0d1d","Ran0d2d","Ran0d3d","Ran0d4d","Ran0d5d",
+            "Ran0d6d","Ran0d7d","Ran0d8d","Ran0d9d","Rn0d10d",
+            "Rn0d11d","Rn0d12d","Rn0d13d","Rn0d14d","Rn0d15d",
+            "Rn0d16d","Rn0d17d","Rn0d18d","Rn0d19d","Rn0d20d",
+            "Rn0d21d","Rn0d22d","Rn0d23d","Rn0d24d","Rn0d25d",
+            "Rn0d26d","Rn0d27d","Rn0d28d","Rn0d29d","Rn0d30d",
+            "Rn0d35d","Rn0d40d","Rn0d45d","Rn0d60d",
+            "Rn0d90d","Rn0d120")
+
+names = VarRain [-1]
+
+names_Hist = c("Rainfall in the event day (mm)","Accumulated Rainfall in the event day and previous day (mm)",
+               "Accumulated Rainfall in the event day and 2 previous days (mm)","Accumulated Rainfall in the event day and 3 previous days (mm)",
+               "Accumulated Rainfall in the event day and 4 previous days (mm)","Accumulated Rainfall in the event day and 5 previous days (mm)",
+               "Accumulated Rainfall in the event day and 6 previous days (mm)","Accumulated Rainfall in the event day and 7 previous days (mm)",
+               "Accumulated Rainfall in the event day and 8 previous days (mm)","Accumulated Rainfall in the event day and 9 previous days (mm)",
+               "Accumulated Rainfall in the event day and 10 previous days (mm)","Accumulated Rainfall in the event day and 11 previous days (mm)",
+               "Accumulated Rainfall in the event day and 12 previous days (mm)","Accumulated Rainfall in the event day and 13 previous days (mm)",
+               "Accumulated Rainfall in the event day and 14 previous days (mm)","Accumulated Rainfall in the event day and 15 previous days (mm)",
+               "Accumulated Rainfall in the event day and 16 previous days (mm)","Accumulated Rainfall in the event day and 17 previous days (mm)",
+               "Accumulated Rainfall in the event day and 18 previous days (mm)","Accumulated Rainfall in the event day and 19 previous days (mm)",
+               "Accumulated Rainfall in the event day and 20 previous days (mm)","Accumulated Rainfall in the event day and 21 previous days (mm)",
+               "Accumulated Rainfall in the event day and 22 previous days (mm)","Accumulated Rainfall in the event day and 23 previous days (mm)",
+               "Accumulated Rainfall in the event day and 24 previous days (mm)","Accumulated Rainfall in the event day and 25 previous days (mm)",
+               "Accumulated Rainfall in the event day and 26 previous days (mm)","Accumulated Rainfall in the event day and 27 previous days (mm)",
+               "Accumulated Rainfall in the event day and 28 previous days (mm)","Accumulated Rainfall in the event day and 29 previous days (mm)",
+               "Accumulated Rainfall in the event day and 30 previous days (mm)","Accumulated Rainfall in the event day and 35 previous days (mm)",
+               "Accumulated Rainfall in the event day and 40 previous days (mm)","Accumulated Rainfall in the event day and 45 previous days (mm)",
+               "Accumulated Rainfall in the event day and 60 previous days (mm)", "Accumulated Rainfall in the event day and 90 previous days (mm)",
+               "Accumulated Rainfall in the event day and 120 previous days (mm)")
+
+dataRain = as.data.frame(pts_data [VarRain])
+
+for (i in 1:length(names)) {
+  data_Class = data.frame(matrix(NA, ncol=2, nrow=nrow(dataRain)))
+  names(data_Class) = c("Disaster", "Var")
+  data_Class$Disaster = dataRain[,c("Class")]
+  data_Class$Var = dataRain[,i+1]
+  t = t.test(Var ~ Disaster, data=data_Class)
+  info = paste("t-test for mean \n mean no =", round(t$estimate[[1]],3), 
+               "\n mean yes =", round(t$estimate[[2]],3), "\n p-value =", t$p.value)
+  png(height=900, width=900, pointsize=15,
+      file=paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/Rain-",i,".png", sep=""))
+  p = ggplot(data_Class, aes(Var, fill=Disaster)) +
+    geom_histogram(aes(y = ..density..), position='identity',
+                   binwidth=diff(range(data_Class[data_Class$Disaster=="no",2]))/30) + 
+    theme(legend.text=element_text(size=12), legend.position=c(0.9,0.9)) +
+    scale_fill_manual(values=alpha(c("Turquoise", "LightCoral"), .5)) +
+    labs(x=names_Hist[i]) + theme(axis.title=element_text(size=20), axis.text=element_text(size=15)) +
+    geom_vline(xintercept=mean(data_Class[data_Class$Disaster=="no",2], na.rm=T), color="SteelBlue") +
+    geom_vline(xintercept=mean(data_Class[data_Class$Disaster=="yes",2], na.rm=T), color="DeepPink") +
+    labs(title=info) + theme(plot.title=element_text(size=rel(1.4)))
+  plot(p)
+  dev.off()
+  print(i)
+}
+
+
+########################################### DE - All ---------------------------------
+# Variav_All = c("Class",
+#                "Rn0d14d","RainIn0d14d","RainIn1d14d","RainIn2d14d",
+#                "Slope",
+#                "Aspect","AspectD","AspectD4",
+#                "Veg2010","VegDif","Suscep",
+#                "MnI2010","MnIncDf",
+#                "Sbn2010",
+#                "SubnChn","SubnChn2cl",
+#                "Dm2010","DmDif",
+#                "PSEsg10","PSPav10","PSMF10","PSBL10","PEsgCA10",
+#                "PReAlf10","PReFeAlf10","PReMaAlf10",
+#                "PReFe10","PReMa10",
+#                "HabDm10")
+# Variav_AllsClass = Variav_All[-1]
+# 
+# data = data[,Variav_All]
+
+sink("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/Data_Summary.txt")
+summary(data)
+sink()
+
+
+
+
+########################################### DE - Histograms ---------------------------------
+colours2=c("Turquoise", "LightCoral")
+add.alpha <- function(colours2, alpha=1){
+  if(missing(colours2))
+    stop("Please provide a vector of colours.")
+  apply(sapply(colours2, col2rgb)/255, 2, 
+        function(x) 
+          rgb(x[1], x[2], x[3], alpha=alpha))  
+}
+
+
+# Variav_AllsClassDesag = c(Variav_AllsClass[1:7],"AspectD1","AspectD2","AspectD3","AspectD4","AspectD5","AspectD6","AspectD7","AspectD8","AspectD9",
+                          # Variav_AllsClass[8],"AspectD4-Flat","AspectD4-N","AspectD4-E","AspectD4-S","AspectD4-W",
+                          # Variav_AllsClass[9:11],"Suscep-1","Suscep-2","Suscep-3",
+                          # Variav_AllsClass[12:14],"Sbn2010-0","Sbn2010-1",
+                          # Variav_AllsClass[15],"SubnChn-0","SubnChn-1","SubnChn-2",
+                          # Variav_AllsClass[16:28])
+# T_result = data.frame(matrix(NA, ncol=10, nrow=length(Variav_AllsClassDesag)), row.names=Variav_AllsClassDesag)
+T_result = data.frame(matrix(NA, ncol=10, nrow=0))
+colnames(T_result) = c("Cat","PTSYes","PTSNo","PropYes","PropNo","MeanYes","MeanNo","t","df","pval")
+
+
+## Continuous
+Variav_C = c("Dm2010","DmDif","MnI2010","MnIncDf",
+             "PSEsg10","PSPav10","PSMF10","PSBL10","PEsgCA10",
+             "PReFe10","PReMa10","PReAlf10","PReFeAlf10","PReMaAlf10",
+             "HabDm10",
+             "Veg2010","VegDif","Slope","Aspect",
+             "Ran0d1d","Ran0d7d","Rn0d21d","Rn0d28d","Rn0d60d","Rn0d120",
+             "Rn0d14d","RainIn0d14d","RainIn1d14d","RainIn2d14d")
+
+Variav_C_names = c("Households (2010) (in units)","Household Change (2010-1991) (in units)", 
+                   "Mean Household Income (2010) (in R$ 0f 2018)", "Mean Household Income Change (2010-1991) (in R$ of 2018)", 
+                   "Households without sewerage access (2010) (in %)","Households in unpeaved streets (2010) (in %)",
+                   "Households in streets without storm sewer (curb) (2010) (in %)", "Households in streets without  storm sewer (grating) (2010) (in %)",
+                   "Households in streets with open sewage (2010) (in %)",
+                   "Female households' responsible (2010) (in %)","Male households' responsible (2010) (in %)",
+                   "Literate households' responsible (2010) (in %)",
+                   "Literate female households' responsible (2010) (in %)","Literate male households' responsible (2010) (in %)",
+                   "People per household (2010)",
+                   "Vegetation (in %)","Vegetation Change (2010-1992) (in %)", "Slope (in degrees)", "Aspect (in degrees, 0°=>N)",
+                   "Antecedent Rainfall (day + previous day) (in mm)", "Antecedent Rainfall (day + 7 previous days) (in mm)",
+                   "Antecedent Rainfall (day + 21 previous days) (in mm)","Antecedent Rainfall (day + 28 previous days) (in mm)",
+                   "Antecedent Rainfall (day + 60 previous days) (in mm)","Antecedent Rainfall (day + 120 previous days) (in mm)",
+                   "Antecedent Rainfall (day + 14 previous days) (in mm)", 
+                   "Rainfall index - current day / 14 previous days (in %)","Rainfall index - previous day / 14 previous days (in %)",
+                   "Rainfall index - 2 previous days / 14 previous days (in %)")
+
+data_Hist = data[,Variav_C]
+names_Hist = Variav_C_names
+
+for (i in 1:ncol(data_Hist)) {
+  Var = colnames(data_Hist[i])
+  data_Hist_Class = data.frame(matrix(NA, ncol=2, nrow=nrow(data)))
+  names(data_Hist_Class) = c("Disaster", "Var")
+  data_Hist_Class$Disaster = data[,c("Class")]
+  data_Hist_Class$Var = data_Hist[,i]
+  data_Hist_Class = na.omit(data_Hist_Class)
+  t = t.test(Var ~ Disaster, data=data_Hist_Class)
+  info = paste("t-test for mean \n mean no =", round(t$estimate[[1]],3), 
+               "\n mean yes =", round(t$estimate[[2]],3), "\n p-value =", t$p.value)
+  png(height=900, width=900, pointsize=15,
+      file=paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/DistHist",i,"-",colnames(data_Hist[i]),".png", sep=""))
+  p = ggplot(data_Hist_Class, aes(Var, fill=Disaster)) +
+    geom_histogram(aes(y = ..density..), position='identity',
+                   binwidth=diff(range(data_Hist_Class[data_Hist_Class$Disaster=="0",2]))/30) + 
+    theme(legend.text=element_text(size=12), legend.position=c(0.9,0.9)) +
+    scale_fill_manual(values=alpha(c("Turquoise", "LightCoral"), .5)) +
+    labs(x=names_Hist[i]) + theme(axis.title=element_text(size=20), axis.text=element_text(size=15)) +
+    geom_vline(xintercept=mean(data_Hist_Class[data_Hist_Class$Disaster=="0",2], na.rm=T), color="SteelBlue") +
+    geom_vline(xintercept=mean(data_Hist_Class[data_Hist_Class$Disaster=="1s",2], na.rm=T), color="DeepPink") +
+    labs(title=info) + theme(plot.title=element_text(size=rel(1.4)))
+  plot(p)
+  dev.off()
+  T_result[Var,"PTSYes"]  = nrow(data_Hist_Class [data_Hist_Class$Disaster=="1",])
+  T_result[Var,"PropYes"]  = nrow(data_Hist_Class [data_Hist_Class$Disaster=="1",])/nrow(data_Hist_Class)
+  T_result[Var,"PTSNo"]  = nrow(data_Hist_Class [data_Hist_Class$Disaster=="0",])
+  T_result[Var,"PropNo"]  = nrow(data_Hist_Class [data_Hist_Class$Disaster=="0",])/nrow(data_Hist_Class)
+  T_result[Var,"MeanYes"] = round(t$estimate[[2]],3)
+  T_result[Var,"MeanNo"] = round(t$estimate[[1]],3)
+  T_result[Var,"t"] = as.numeric(t$statistic)
+  T_result[Var,"df"] = as.numeric(t$parameter)
+  T_result[Var,"pval"] = as.numeric(t$p.value)
+  print(i)
+  }
+
+
+## Subn2010
+counts = table(data[,"Sbn2010"],data$Class)
+counts = na.omit(counts)
+counts_prop = prop.table(counts, 1)
+cat=c("regular","subn in 2010")
+t = prop.test(counts, correct=FALSE)
+info = paste(t$method, "\n % of landslides locations in:    regular settl. =", round(100-((t$estimate[1]*100)),3), 
+             "%    subn. settl. =", round(100-((t$estimate[2]*100)),3), 
+             "%\n p-value =", t$p.value)
+png(height=900, width=900, pointsize=15,
+    file=("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/DistBar-1-Subn2010.png"))
+barplot(t(counts_prop),
+        xlab="Subnormal Settlement (2010)", 
+        cex.lab=1.6, col=add.alpha(colours2,alpha=.5), border=NA, cex.axis=1.4, cex.names=1.4,
+        legend = c("non-landslides locations","landslides locations"), beside=F, names.arg=cat)
+title(main=info, cex=1.4, adj=0, font.main=1, line=1)
+dev.off()
+T_result["Sbn2010-0", "Cat"] = cat[1]
+T_result["Sbn2010-1", "Cat"] = cat[2]
+T_result["Sbn2010-0","PTSYes"]  = counts[1,2]
+T_result["Sbn2010-1","PTSYes"]  = counts[2,2]
+T_result["Sbn2010-0","PTSNo"]  = counts[1,1] 
+T_result["Sbn2010-1","PTSNo"]  = counts[2,1]  
+T_result["Sbn2010-0","PropYes"]  = counts_prop [1,2]
+T_result["Sbn2010-1","PropYes"]  = counts_prop [2,2]
+T_result["Sbn2010-0","PropNo"]  = counts_prop [1,1] 
+T_result["Sbn2010-1","PropNo"]  = counts_prop [2,1]
+T_result["Sbn2010","t"] = as.numeric(t$statistic)
+T_result["Sbn2010","df"] = as.numeric(t$parameter)
+T_result["Sbn2010","pval"] = as.numeric(t$p.value)
+
+## SubnChn 3 classes
+counts = table(data[,"SubnChn"],data$Class)
+counts = na.omit(counts)
+counts_prop = prop.table(counts, 1)
+cat = c("no change","subn in 2010","subn in 1991")
+t = prop.test(counts, correct=FALSE)
+info = paste(t$method, "\n % of landslides locations in:    no change =", round(100-((t$estimate[1]*100)),3), 
+             "%    subn in 2010 =", round(100-((t$estimate[2]*100)),3), 
+             "%    subn in 1991 =", round(100-((t$estimate[3]*100)),3), 
+             "%\n p-value =", t$p.value)
+png(height=900, width=900, pointsize=15,
+    file=("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/DistBar-2-SubnChn.png"))
+barplot(t(counts_prop),
+        xlab="Subnormal Settlement Change (1991-2010)", cex.lab=1.6, 
+        col=add.alpha(colours2,alpha=.5), border=NA, cex.axis=1.4, cex.names=1.4,
+        legend = c("non-landslides locations","landslides locations"), beside=F, names.arg=cat)
+title(main=info, cex=1.4, adj=0, font.main=1, line=1)
+dev.off()
+T_result["SubnChn-0", "Cat"] = cat[1]
+T_result["SubnChn-1", "Cat"] = cat[2]
+T_result["SubnChn-2", "Cat"] = cat[3]
+T_result["SubnChn-0","PTSYes"]  = counts[1,2]
+T_result["SubnChn-1","PTSYes"]  = counts[2,2]
+T_result["SubnChn-2","PTSYes"]  = counts[3,2]
+T_result["SubnChn-0","PTSNo"]  = counts[1,1] 
+T_result["SubnChn-1","PTSNo"]  = counts[2,1]  
+T_result["SubnChn-2","PTSNo"]  = counts[3,1] 
+T_result["SubnChn-0","PropYes"]  = counts_prop [1,2]
+T_result["SubnChn-1","PropYes"]  = counts_prop [2,2]
+T_result["SubnChn-2","PropYes"]  = counts_prop [3,2]
+T_result["SubnChn-0","PropNo"]  = counts_prop [1,1] 
+T_result["SubnChn-1","PropNo"]  = counts_prop [2,1]
+T_result["SubnChn-2","PropNo"]  = counts_prop [3,1]
+T_result["SubnChn","t"] = as.numeric(t$statistic)
+T_result["SubnChn","df"] = as.numeric(t$parameter)
+T_result["SubnChn","pval"] = as.numeric(t$p.value)
+
+
+## SubnChn 2 classes
+counts = table(data[,"SubnChn2cl"],data$Class)
+counts = na.omit(counts)
+counts_prop = prop.table(counts, 1)
+cat = c("no change","change")
+t = prop.test(counts, correct=FALSE)
+info = paste(t$method, "\n % of landslides locations in:    no change =", round(100-((t$estimate[1]*100)),3), 
+             "%    change =", round(100-((t$estimate[2]*100)),3), 
+             "%\n p-value =", t$p.value)
+png(height=900, width=900, pointsize=15,
+    file=("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/DistBar-3-SubnChn2cl.png"))
+barplot(t(counts_prop),
+        xlab="Subnormal Settlement Change (1991-2010)", 
+        cex.lab=1.6, col=add.alpha(colours2,alpha=.5), border=NA, cex.axis=1.4, cex.names=1.4,
+        legend = c("non-landslides locations","landslides locations"), beside=F, names.arg=cat)
+title(main=info, cex=1.4, adj=0, font.main=1, line=1)
+dev.off()
+T_result["SubnChn2cl-0", "Cat"] = cat[1]
+T_result["SubnChn2cl-1", "Cat"] = cat[2]
+T_result["SubnChn2cl-0","PTSYes"]  = counts[1,2]
+T_result["SubnChn2cl-1","PTSYes"]  = counts[2,2]
+T_result["SubnChn2cl-0","PTSNo"]  = counts[1,1] 
+T_result["SubnChn2cl-1","PTSNo"]  = counts[2,1]  
+T_result["SubnChn2cl-0","PropYes"]  = counts_prop [1,2]
+T_result["SubnChn2cl-1","PropYes"]  = counts_prop [2,2]
+T_result["SubnChn2cl-0","PropNo"]  = counts_prop [1,1] 
+T_result["SubnChn2cl-1","PropNo"]  = counts_prop [2,1]
+T_result["SubnChn2cl","t"] = as.numeric(t$statistic)
+T_result["SubnChn2cl","df"] = as.numeric(t$parameter)
+T_result["SubnChn2cl","pval"] = as.numeric(t$p.value)
+
+
+## Suscep
+counts = table(data[,"Suscep"],data$Class)
+counts = na.omit(counts)
+counts_prop = prop.table(counts, 1)
+cat = c("Low", "Medium", "High")
+t = prop.test(counts, correct=FALSE)
+info = paste(t$method, "\n % of landslides locations in:    low =", round(100-((t$estimate[1]*100)),3), 
+             "%    medium =", round(100-((t$estimate[2]*100)),3), 
+             "%    high =", round(100-((t$estimate[3]*100)),3), 
+             "%\n p-value =", t$p.value)
+png(height=900, width=900, pointsize=15,
+    file=("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/DistBar-4-Suscep.png"))
+barplot(t(counts_prop),
+        xlab="Mass-movement susceptibility", cex.lab=1.6, 
+        col=add.alpha(colours2,alpha=.5), border=NA, cex.axis=1.4, cex.names=1.4,
+        legend = c("non-landslides locations","landslides locations"), beside=F, names.arg=cat)
+title(main=info, cex=1.4, adj=0, font.main=1, line=1)
+dev.off()
+T_result["Suscep-0", "Cat"] = cat[1]
+T_result["Suscep-1", "Cat"] = cat[2]
+T_result["Suscep-2", "Cat"] = cat[3]
+T_result["Suscep-0","PTSYes"]  = counts[1,2]
+T_result["Suscep-1","PTSYes"]  = counts[2,2]
+T_result["Suscep-2","PTSYes"]  = counts[3,2]
+T_result["Suscep-0","PTSNo"]  = counts[1,1] 
+T_result["Suscep-1","PTSNo"]  = counts[2,1]  
+T_result["Suscep-2","PTSNo"]  = counts[3,1] 
+T_result["Suscep-0","PropYes"]  = counts_prop [1,2]
+T_result["Suscep-1","PropYes"]  = counts_prop [2,2]
+T_result["Suscep-2","PropYes"]  = counts_prop [3,2]
+T_result["Suscep-0","PropNo"]  = counts_prop [1,1] 
+T_result["Suscep-1","PropNo"]  = counts_prop [2,1]
+T_result["Suscep-2","PropNo"]  = counts_prop [3,1]
+T_result["Suscep","t"] = as.numeric(t$statistic)
+T_result["Suscep","df"] = as.numeric(t$parameter)
+T_result["Suscep","pval"] = as.numeric(t$p.value)
+
+
+## AspectD4
+counts = table(data[,"AspectD4"],data$Class)
+counts = na.omit(counts)
+counts_prop = prop.table(counts, 1)
+cat = c("E","Flat","N","S","W")
+t = prop.test(counts, correct=FALSE)
+info = paste(t$method, "\n % of landslides locations in:    E =", round(100-((t$estimate[1]*100)),3), 
+             "%    Flat =", round(100-((t$estimate[2]*100)),3), 
+             "%    N =", round(100-((t$estimate[3]*100)),3), 
+             "%    S =", round(100-((t$estimate[4]*100)),3), 
+             "%    W =", round(100-((t$estimate[5]*100)),3), 
+             "%\n p-value =", t$p.value)
+png(height=900, width=900, pointsize=15,
+    file=("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/DistBar-5-AspectD4.png"))
+barplot(t(counts_prop),
+        xlab="Aspect", cex.lab=1.6, 
+        col=add.alpha(colours2,alpha=.5), border=NA, cex.axis=1.4, cex.names=1.4,
+        legend = c("non-landslides locations","landslides locations"), beside=F, names.arg=cat)
+title(main=info, cex=1.4, adj=0, font.main=1, line=1)
+dev.off()
+T_result["AspectD4-1", "Cat"] = cat[1]
+T_result["AspectD4-2", "Cat"] = cat[2]
+T_result["AspectD4-3", "Cat"] = cat[3]
+T_result["AspectD4-4", "Cat"] = cat[4]
+T_result["AspectD4-5", "Cat"] = cat[5]
+T_result["AspectD4-1","PTSYes"]  = counts[1,2]
+T_result["AspectD4-2","PTSYes"]  = counts[2,2]
+T_result["AspectD4-3","PTSYes"]  = counts[3,2]
+T_result["AspectD4-4","PTSYes"]  = counts[4,2]
+T_result["AspectD4-5","PTSYes"]  = counts[5,2]
+T_result["AspectD4-1","PTSNo"]  = counts[1,1] 
+T_result["AspectD4-2","PTSNo"]  = counts[2,1]  
+T_result["AspectD4-3","PTSNo"]  = counts[3,1] 
+T_result["AspectD4-4","PTSNo"]  = counts[4,1]  
+T_result["AspectD4-5","PTSNo"]  = counts[5,1] 
+T_result["AspectD4-1","PropYes"]  = counts_prop [1,2]
+T_result["AspectD4-2","PropYes"]  = counts_prop [2,2]
+T_result["AspectD4-3","PropYes"]  = counts_prop [3,2]
+T_result["AspectD4-4","PropYes"]  = counts_prop [4,2]
+T_result["AspectD4-5","PropYes"]  = counts_prop [5,2]
+T_result["AspectD4-1","PropNo"]  = counts_prop [1,1] 
+T_result["AspectD4-2","PropNo"]  = counts_prop [2,1]
+T_result["AspectD4-3","PropNo"]  = counts_prop [3,1]
+T_result["AspectD4-4","PropNo"]  = counts_prop [4,1]
+T_result["AspectD4-5","PropNo"]  = counts_prop [5,1]
+T_result["AspectD4","t"] = as.numeric(t$statistic)
+T_result["AspectD4","df"] = as.numeric(t$parameter)
+T_result["AspectD4","pval"] = as.numeric(t$p.value)
+
+
+# AspectDdummy e AspectD4dummy
+Variav_D = c("AspectDN","AspectDNE","AspectDE","AspectDSE","AspectDS","AspectDSW","AspectDW","AspectDNW","AspectDFlat",
+             "AspectD4N","AspectD4E","AspectD4S","AspectD4W")
+Variav_D_names = c("Aspect-N","Aspect-NE","Aspect-E","Aspect-SE","Aspect-S","Aspect-SW","Aspect-W","Aspect-NW","Aspect-Flat",
+                   "Aspect4D-N","Aspect4D-W","Aspect4D-S","Aspect4D-W")
+for (d in 1:9) {
+  dir = Variav_D[d]
+  counts = table(data[,dir],data$Class)
+  counts = na.omit(counts)
+  counts_prop = prop.table(counts, 2)
+  cat=c("other",dir)
+  t = prop.test(counts, correct=FALSE)
+  info = paste(t$method, "\n % of landslides locations in:    in other directions =",round((100-(t$estimate[1]*100)),3), 
+               "%    in", dir, " =", round((100-(t$estimate[2]*100)),3), 
+               "%\n p-value =", t$p.value)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/DistBar-",d+5,"-",dir,".png",sep="")
+  png(height=900, width=900, pointsize=15,
+      file=file)
+  barplot(t(counts_prop), 
+          xlab=dir, cex.lab=1.6, col=add.alpha(colours2,alpha=.5), border=NA, cex.axis=1.4, cex.names=1.4,
+          legend = c("non-landslides locations","landslides locations"), beside=F, names.arg=cat)
+  title(main=info, cex=1.4, adj=0, font.main=1, line=1)
+  dev.off()
+  nom0 = paste(dir, "-0")
+  nom1 = paste(dir, "-1")
+  T_result[nom0, "Cat"] = cat[1]
+  T_result[nom1, "Cat"] = cat[2]
+  T_result[nom0,"PTSYes"]  = counts[1,2]
+  T_result[nom1,"PTSYes"]  = counts[2,2]
+  T_result[nom0,"PTSNo"]  = counts[1,1]
+  T_result[nom1,"PTSNo"]  = counts[2,1]
+  T_result[nom0,"PropYes"]  = counts_prop [1,2]
+  T_result[nom1,"PropYes"]  = counts_prop [2,2]
+  T_result[nom0,"PropNo"]  = counts_prop [1,1]
+  T_result[nom1,"PropNo"]  = counts_prop [2,1]
+  T_result[dir,"t"] = as.numeric(t$statistic)
+  T_result[dir,"df"] = as.numeric(t$parameter)
+  T_result[dir,"pval"] = as.numeric(t$p.value)
+  print(d)
+}
+
+for (d in 10:13) {
+  dir = Variav_D[d]
+  counts = table(data[,dir],data$Class)
+  counts = na.omit(counts)
+  counts_prop = prop.table(counts, 2)
+  cat=c("other",dir)
+  t = prop.test(counts, correct=FALSE)
+  info = paste(t$method, "\n % of landslides locations in:    in other directions =",round((100-(t$estimate[1]*100)),3),
+               "%    in", dir, " =", round((100-(t$estimate[2]*100)),3), 
+               "%\n p-value =", t$p.value)
+  file = paste("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/DistBar-",d+5,"-",dir,".png",sep="")
+  png(height=900, width=900, pointsize=15,
+      file=file)
+  barplot(t(counts_prop), 
+          xlab=dir, cex.lab=1.6, col=add.alpha(colours2,alpha=.5), border=NA, cex.axis=1.4, cex.names=1.4,
+          legend=c("non-landslides locations","landslides locations"), beside=F, names.arg=cat)
+  title(main=info, cex=1.4, adj=0, font.main=1, line=1)
+  dev.off()
+  nom0 = paste(dir, "-0")
+  nom1 = paste(dir, "-1")
+  T_result[nom0, "Cat"] = cat[1]
+  T_result[nom1, "Cat"] = cat[2]
+  T_result[nom0,"PTSYes"]  = counts[1,2]
+  T_result[nom1,"PTSYes"]  = counts[2,2]
+  T_result[nom0,"PTSNo"]  = counts[1,1]
+  T_result[nom1,"PTSNo"]  = counts[2,1]
+  T_result[nom0,"PropYes"]  = counts_prop [1,2]
+  T_result[nom1,"PropYes"]  = counts_prop [2,2]
+  T_result[nom0,"PropNo"]  = counts_prop [1,1]
+  T_result[nom1,"PropNo"]  = counts_prop [2,1]
+  T_result[dir,"t"] = as.numeric(t$statistic)
+  T_result[dir,"df"] = as.numeric(t$parameter)
+  T_result[dir,"pval"] = as.numeric(t$p.value)
+  print(d)
+}
+
+write.csv2 (T_result,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/T_result.csv" )
+
+
+
+########################################### DE - Correlation ---------------------------------
+library("Hmisc")
+library("corrplot")
+#http://www.sthda.com/english/wiki/correlation-matrix-a-quick-start-guide-to-analyze-format-and-visualize-a-correlation-matrix-using-r-software
+
+
+## continuous variables
+#https://geographyfieldwork.com/SpearmansRankCalculator.html
+#H0: The The two variables are independent
+#H1: The two variables are related.
+#p-value menor que 0.05, eu rejeito H0 (ou seja, eu rejeito que não há correlação entre as variáveis - eu aceito que ha correlação)
+#p-value maior que 0.05, eu aceito H0 (ou seja, eu aceito que não há correlação entre as variáveis)
+
+#data_c = as.matrix(data[,Variav_C])
+
+Var_UniPaper = c("Rn0d14d",
+                 "Slope",
+                 "Veg2010","VegDif",
+                 "MnI2010","MnIncDf","PReAlf10",
+                 "Dm2010","DmDif",
+                 "PSPav10","PSMF10","PSBL10","PEsgCA10")
+data_c = as.matrix(data[,Var_UniPaper])
+
+data_c = na.omit(data_c)
+
+corr_data_c = rcorr(data_c, type="spearman")
+corr_data_c
+
+info = c("Spearman correlation coefficient")
+#nomefile = c("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/Corr_Data-Cont.png")
+nomefile = c("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/Corr_DataUniPaper-Cont.png")
+png(height=900, width=900, pointsize=15,file=nomefile)
+corrplot(corr_data_c$r, type="upper", p.mat=corr_data_c$P, sig.level=0.05, insig="blank", addCoef.col="black", 
+         tl.cex=1.2, tl.col="black", tl.srt=45, mar=c(0,0,7,0), number.cex= 7/ncol(data_c), diag=F)
+title(main=info, cex=1.4, adj=0, font.main=1, line=-2)
+dev.off()
