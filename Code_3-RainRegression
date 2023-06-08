@@ -1,0 +1,212 @@
+################################################ Estat - Rain Regr ---------------------------------
+rm(list=ls())
+gc()
+
+library(data.table)
+library(lmtest) #lr test
+library(pscl) #R2
+library(ggplot2)
+
+rm(list=ls()[! ls() %in% c("pts_data")])
+# pts_data = read.csv2 ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/DataAll_Train_PTS.csv", header=T)
+
+Ano = 2010
+# Nboot = 2
+Nboot = 1000
+Nsamples = 1000
+
+Var_Rain = c("ID", "Class",
+            "Rn0d",
+            "Rn0d1d","Rn0d2d","Rn0d3d","Rn0d4d","Rn0d5d",
+            "Rn0d6d","Rn0d7d","Rn0d8d","Rn0d9d","Rn0d10d",
+            "Rn0d11d","Rn0d12d","Rn0d13d","Rn0d14d","Rn0d15d",
+            "Rn0d16d","Rn0d17d","Rn0d18d","Rn0d19d","Rn0d20d",
+            "Rn0d21d","Rn0d22d","Rn0d23d","Rn0d24d","Rn0d25d",
+            "Rn0d26d","Rn0d27d","Rn0d28d","Rn0d29d","Rn0d30d",
+            "Rn0d35d","Rn0d40d","Rn0d45d","Rn0d60d",
+            "Rn0d90d","Rn0d120")
+
+nVar_Rain = length(Var_Rain)-2
+
+data = as.data.frame(pts_data)
+data = data[,Var_Rain]
+tab_class = as.data.frame(data$Class)
+names(tab_class) = c("Class")
+tab_class$Cl = NA
+tab_class$Cl[tab_class$Class=="yes"] = 1
+tab_class$Cl[tab_class$Class=="no"] = 0
+data$Class = as.factor(tab_class$Cl)
+rm(tab_class)
+data = droplevels(data)
+
+data_Rain = data.table(data)
+setkeyv(data_Rain,c("Class"))
+
+# Variable selection [v] and Bootstrap to model calculation [b]
+#Model parameters: Coefficient (intercept&parameter); std. error (intercept&parameter); p-value (intercept&parameter)[association between variable and response]
+#Statistical Tests for Individual Predictors: Likelihood Ratio Test [significance of the addition of new term to the model] 
+#Goodness of Fit: R2 (Nagelkerke R^2 index) from lrm (rms package)
+VarEstat_rain = c("coef","coef.se","coef.p-val", 
+                  "LRchi2","LRchi2.pvalue",
+                  "r2Nagelkerke")
+
+Model_Rain_Samples_train = data.frame(Boot=1:Nboot, Samples=NA)
+
+Model_Rain_coef = data.frame(matrix(NA, ncol=Nboot, nrow=nVar_Rain), row.names=c(Var_Rain[-(1:2)]))
+colnames(Model_Rain_coef) = paste("Boot",1:Nboot, sep=" ")
+Model_Rain_coef.se = Model_Rain_coef
+Model_Rain_coef.pvalue = Model_Rain_coef
+
+Model_Rain_intercept = Model_Rain_coef
+Model_Rain_intercept.se = Model_Rain_coef
+Model_Rain_intercept.pvalue = Model_Rain_coef
+
+Model_Rain_LogLik_l0 = Model_Rain_coef
+Model_Rain_LogLik_lM = Model_Rain_coef
+
+Model_Rain_LRchi2 = Model_Rain_coef
+Model_Rain_LRchi2.pvalue = Model_Rain_coef
+Model_Rain_r2Nagelkerke = Model_Rain_coef
+Model_Rain_aic = Model_Rain_coef
+
+for (b in (1:Nboot)) {
+  tmp_Rain = rbind((data_Rain[data_Rain$Class==1,][sample(nrow(data_Rain[data_Rain$Class==1,]), Nsamples, replace=F),]), 
+              (data_Rain[data_Rain$Class==0,][sample(nrow(data_Rain[data_Rain$Class==0,]), Nsamples, replace=F),]))
+  Model_Rain_Samples_train[b,2] = paste(as.vector(tmp_Rain$ID),collapse="-")
+  for (v in (1:nVar_Rain)) { 
+    cols = c("Class",Var_Rain[2+v])
+    tmp_Rainv = tmp_Rain[,cols,with=F]
+    tmp_Rainv = na.omit(tmp_Rainv)
+    m_Rain = glm(formula=Class ~ ., family=binomial(link="logit"), data=tmp_Rainv)
+    Model_Rain_coef[v,b] = as.numeric(coef(summary(m_Rain))[2,1])
+    Model_Rain_coef.se[v,b] = as.numeric(coef(summary(m_Rain))[2,2])
+    Model_Rain_coef.pvalue[v,b] = as.numeric(coef(summary(m_Rain))[2,4])
+    Model_Rain_intercept[v,b] = as.numeric(coef(summary(m_Rain))[1,1])
+    Model_Rain_intercept.se[v,b] = as.numeric(coef(summary(m_Rain))[1,2])
+    Model_Rain_intercept.pvalue[v,b] = as.numeric(coef(summary(m_Rain))[1,4])
+    tmp_Rain_lrtest = lrtest(m_Rain) 
+    Model_Rain_LogLik_lM[v,b] = as.numeric(tmp_Rain_lrtest[1,2])
+    Model_Rain_LogLik_l0[v,b] = as.numeric(tmp_Rain_lrtest[2,2])
+    Model_Rain_LRchi2[v,b] = as.numeric(tmp_Rain_lrtest[2,4])
+    Model_Rain_LRchi2.pvalue[v,b] = as.numeric(tmp_Rain_lrtest[2,5])
+    tmp_Rain_pR2 = pR2(m_Rain)
+    Model_Rain_r2Nagelkerke[v,b] = as.numeric(tmp_Rain_pR2[6])
+    Model_Rain_aic[v,b] = as.numeric(m_Rain$aic)
+    print(paste("variav =", Var_Rain[2+v], "- boot =", b))
+  }
+}
+
+# write.csv2 (Model_Rain_Samples_train,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_Samples_train.csv")
+# write.csv2 (Model_Rain_coef,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_coef.csv")
+# write.csv2 (Model_Rain_coef.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_coef.se.csv")
+# write.csv2 (Model_Rain_coef.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_coef.pvalue.csv")
+# write.csv2 (Model_Rain_intercept,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_intercept.csv")
+# write.csv2 (Model_Rain_intercept.se,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_intercept.se.csv")
+# write.csv2 (Model_Rain_intercept.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_interceptf.pvalue.csv")
+# write.csv2 (Model_Rain_LRchi2,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_LRchi2.csv")
+# write.csv2 (Model_Rain_LRchi2.pvalue,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_LRchi2.pvalue.csv")
+# write.csv2 (Model_Rain_r2Nagelkerke,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_r2Nagelkerke.csv")
+# write.csv2 (Model_Rain_LogLik_lM,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_LogLik_lM.csv")
+# write.csv2 (Model_Rain_LogLik_l0,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_LogLik_l0.csv")
+# write.csv2 (Model_Rain_aic,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_Rain_aic.csv")
+
+VarEstat_RainAll = c("mean.coef_param","CIinf mean.coef_param","CIsup coef_param",
+                  "mean.coef.p-value","CIinf mean.coef.p-value","CIsup mean.coef.p-value",
+                  "mean.LL0","CIinf mean.LL0","CIsup mean.LL0",
+                  "mean.LLM0","CIinf mean.LLM0","CIsup mean.LLM0",
+                  "mean.LLMx","CIinf mean.LLMx","CIsup mean.LLMx",
+                  "mean.LRchi2_MXm0","CIinf mean.LRchi2_MXm0","CIsup mean_MXm0.LRchi2",
+                  "mean.LRchi2_MXM0","CIinf mean.LRchi2_MXM0","CIsup mean_MXM0.LRchi2",
+                  "mean.LRchi2_MXm0.pvalue","CIinf mean.LRchi2_MXm0.pvalue","CIsup mean_MXm0.LRchi2.pvalue",
+                  "mean.LRchi2_MXM0.pvalue","CIinf mean.LRchi2_MXM0.pvalue","CIsup mean_MXM0.LRchi2.pvalue",
+                  "mean.r2Nagelkerke","CIinf mean.r2Nagelkerke", "CIsup mean.r2Nagelkerke",
+                  "mean.aic","CIinf mean.aic", "CIsup mean.aic")
+
+Model_RainAll = data.frame(matrix(NA, ncol=length(VarEstat_RainAll), nrow=nVar_Rain))
+colnames(Model_RainAll) = c(VarEstat_RainAll)
+rownames(Model_RainAll) = Var_Rain[-(1:2)]
+
+for (v in 1:nVar_Rain) {
+  variv = Var_Rain[v+2]
+  Model_RainAll[v,1] = mean(as.numeric(Model_Rain_coef[v,]))
+  Model_RainAll[v,2] = mean(as.numeric(Model_Rain_coef[v,])) - (qnorm(0.975)*sd(as.numeric(Model_Rain_coef[v,]))/sqrt(Nboot))
+  Model_RainAll[v,3] = mean(as.numeric(Model_Rain_coef[v,])) + (qnorm(0.975)*sd(as.numeric(Model_Rain_coef[v,]))/sqrt(Nboot))
+  Model_RainAll[v,4] = mean(as.numeric(Model_Rain_coef.pvalue[v,]))
+  Model_RainAll[v,5] = mean(as.numeric(Model_Rain_coef.pvalue[v,])) - (qnorm(0.975)*sd(as.numeric(Model_Rain_coef.pvalue[v,]))/sqrt(Nboot))
+  Model_RainAll[v,6] = mean(as.numeric(Model_Rain_coef.pvalue[v,])) + (qnorm(0.975)*sd(as.numeric(Model_Rain_coef.pvalue[v,]))/sqrt(Nboot))
+  
+  Model_RainAll[v,7] = mean(as.numeric(Model_Rain_LogLik_l0[v,]))
+  Model_RainAll[v,8] = mean(as.numeric(Model_Rain_LogLik_l0[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Rain_LogLik_l0[v,])))/sqrt(Nboot)))
+  Model_RainAll[v,9] = mean(as.numeric(Model_Rain_LogLik_l0[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Rain_LogLik_l0[v,])))/sqrt(Nboot)))
+  Model_RainAll[v,10] = mean(as.numeric(Model_Rain_LogLik_lM[v,]))
+  Model_RainAll[v,11] = mean(as.numeric(Model_Rain_LogLik_lM[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Rain_LogLik_lM[v,])))/sqrt(Nboot)))
+  Model_RainAll[v,12] = mean(as.numeric(Model_Rain_LogLik_lM[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Rain_LogLik_lM[v,])))/sqrt(Nboot)))
+  
+  Model_RainAll[v,16] = mean(as.numeric(Model_Rain_LRchi2[v,]))
+  Model_RainAll[v,17] = mean(as.numeric(Model_Rain_LRchi2[v,])) - (qnorm(0.975)*sd(as.numeric(Model_Rain_LRchi2[v,]))/sqrt(Nboot))
+  Model_RainAll[v,18] = mean(as.numeric(Model_Rain_LRchi2[v,])) + (qnorm(0.975)*sd(as.numeric(Model_Rain_LRchi2[v,]))/sqrt(Nboot))
+  
+  Model_RainAll[v,22] = mean(as.numeric(Model_Rain_LRchi2.pvalue[v,]))
+  Model_RainAll[v,23] = mean(as.numeric(Model_Rain_LRchi2.pvalue[v,])) - (qnorm(0.975)*sd(as.numeric(Model_Rain_LRchi2.pvalue[v,]))/sqrt(Nboot))
+  Model_RainAll[v,24] = mean(as.numeric(Model_Rain_LRchi2.pvalue[v,])) + (qnorm(0.975)*sd(as.numeric(Model_Rain_LRchi2.pvalue[v,]))/sqrt(Nboot))
+  
+  Model_RainAll[v,28] = mean(as.numeric(Model_Rain_r2Nagelkerke[v,]))
+  Model_RainAll[v,29] = mean(as.numeric(Model_Rain_r2Nagelkerke[v,])) - (qnorm(0.975)*sd(as.numeric(Model_Rain_r2Nagelkerke[v,]))/sqrt(Nboot))
+  Model_RainAll[v,30] = mean(as.numeric(Model_Rain_r2Nagelkerke[v,])) + (qnorm(0.975)*sd(as.numeric(Model_Rain_r2Nagelkerke[v,]))/sqrt(Nboot))
+  
+  Model_RainAll[v,31] = mean(as.numeric(Model_Rain_aic[v,]))
+  Model_RainAll[v,32] = mean(as.numeric(Model_Rain_aic[v,])) - (qnorm(0.975)*((sd(as.numeric(Model_Rain_aic[v,])))/sqrt(Nboot)))
+  Model_RainAll[v,33] = mean(as.numeric(Model_Rain_aic[v,])) + (qnorm(0.975)*((sd(as.numeric(Model_Rain_aic[v,])))/sqrt(Nboot)))
+  
+  print(variv)
+}
+
+# write.csv2 (Model_RainAll,"C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_Rain.csv" )
+
+
+# Plot - Model
+Model_RainAll = read.csv2("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Model/Model_2010_Rain.csv", header=T)
+
+Data_plot = as.data.frame(c(0:30, 35, 40 , 45, 60, 90, 120))
+names(Data_plot) = c("RainD")
+Data_plot$RainR2 = Model_RainAll[,"mean.LRchi2_MXm0"]
+Data_plot$RainR2inf = Model_RainAll[,"CIinf.mean.LRchi2_MXm0"]
+Data_plot$RainR2sup = Model_RainAll[,"CIsup.mean_MXm0.LRchi2"]
+
+min(Data_plot$RainR2)
+max(Data_plot$RainR2)
+
+png(height=900, width=900, pointsize=15,
+    file=c("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/Rain-Model_Rain_LRTest.png"))
+p = ggplot(Data_plot, aes(x=RainD, y=(RainR2), ymin=(RainR2inf), ymax=(RainR2sup))) +
+  geom_ribbon(alpha=.5) +
+  geom_line() +
+  geom_point() +
+  labs(x="Number of previous days considered") + theme(axis.title=element_text(size=20), axis.text=element_text(size=15)) +
+  scale_x_continuous(minor_breaks=seq(0,125,5), breaks=seq(0,125,10), limits=c(0,125)) +
+  labs(y="mean LR Chi-squared") + theme(axis.title=element_text(size=20), axis.text=element_text(size=15))  +
+  scale_y_continuous(minor_breaks=seq(300,1000,20), breaks=seq(300,1000,100), limits=c(300,1000)) + 
+  labs(title=Ano) + theme(axis.text=element_text(size=15))
+plot(p)
+dev.off()
+
+# Plot - Model
+Data_plot = as.data.frame(c(0:30, 35, 40 , 45, 60, 90, 120))
+names(Data_plot) = c("RainD")
+Data_plot$RainR2 = Model_RainAll[,"mean.r2Nagelkerke"]
+Data_plot$RainR2inf = Model_RainAll[,"CIinf.mean.r2Nagelkerke"]
+Data_plot$RainR2sup = Model_RainAll[,"CIsup.mean.r2Nagelkerke"]
+
+png(height=900, width=900, pointsize=15,
+    file=c("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Output-Exploration/Rain-Model_Rain_r2Nagelkerke.png"))
+p = ggplot(Data_plot, aes(x=RainD, y=(RainR2*100), ymin=(RainR2inf*100), ymax=(RainR2sup*100))) +
+  geom_ribbon(alpha=.5) +
+  geom_line() +
+  geom_point() +
+  labs(x="Number of previous days considered") + theme(axis.title=element_text(size=20), axis.text=element_text(size=15)) +
+  scale_x_continuous(minor_breaks=seq(0,125,5), breaks=seq(0,125,10), limits=c(0,125)) +
+  labs(y="mean Pseudo R2") + theme(axis.title=element_text(size=20), axis.text=element_text(size=15))  +
+  scale_y_continuous(minor_breaks=seq(0,60,2), breaks=seq(0,60,10), limits=c(0,60)) + 
+  labs(title=Ano) + theme(axis.text=element_text(size=15))
+plot(p)
+dev.off()
