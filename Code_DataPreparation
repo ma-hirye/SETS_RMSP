@@ -1,0 +1,575 @@
+################################################ Estat - Focal  ---------------------------------
+rm(list=ls())
+gc()
+
+library(raster)
+library(sf)
+library(fasterize)
+
+
+#foc = 11
+foc = 7
+
+a_raster_10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/SIG/LimGrade_WGS23s_Gr10.tif")
+
+
+## Mean household income
+MeanInc2010 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/Rend18_Gr10_2010.tif")
+MeanInc2010_foc = focal(MeanInc2010, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+writeRaster (MeanInc2010_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_MeanInc2010_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+## Mean household income change
+MeanIncDif = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/Dif_Rend18_Gr10_10e91.tif")
+MeanIncDif_foc = focal(MeanIncDif, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+writeRaster (MeanIncDif_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_MeanIncDif_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+## Households in 2010
+Dom2010 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/DomDas_Gr10_2010.tif")
+Dom2010_foc = focal(Dom2010, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=sum, na.rm=T)
+writeRaster (Dom2010_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_Dom2010_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+## Households change
+DomDif = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/Dif_DomDas_Gr10_10e91.tif")
+DomDif_foc = focal(DomDif, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=sum, na.rm=T)
+writeRaster (DomDif_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_DomDif_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+## Subnormal settlements 2010
+Set2010 = st_read ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade", "Censo2010_WGS23s_LimGrade")
+Set2010$Subn = 0
+Set2010$Subn [Set2010$TIPO=="S"] = 1
+Subn2010 = fasterize(Set2010, a_raster_10, "Subn")
+plot(Subn2010)
+Subn2010_foc = focal(Subn2010, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=modal, na.rm=T)
+writeRaster (Subn2010_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_Subn2010_foc.tif", overwrite=F, datatype='INT1U')
+writeRaster (Subn2010, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_Subn2010.tif", overwrite=F, datatype='INT1U')
+
+
+## Subnormal settlements change 
+Set1991 = st_read ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade", "Censo1991_WGS23s_LimGrade")
+Set1991$Subn = 0 
+Set1991$Subn [Set1991$TIPO=="S"] = 2
+Subn1991 = fasterize(Set1991, a_raster_10, "Subn")
+SubnChange = Subn2010 + Subn1991
+SubnChange [SubnChange==3] = 0
+SubnChange_foc = focal(SubnChange, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=modal, na.rm=T)
+writeRaster (SubnChange_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_SubnChange_foc.tif", overwrite=F, datatype='INT1U')
+writeRaster (SubnChange, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_SubnChange.tif", overwrite=F, datatype='INT1U')
+
+
+## Mass movement susceptibility 
+Suscep_sh = st_read("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/SIG", "GeotecniaSuscep_MovMass_34Mun_WGS23s")
+Suscep_sh$Class = NA
+Suscep_sh$Class [Suscep_sh$Classe=="Alta"] = 3
+Suscep_sh$Class [Suscep_sh$Classe=="Media"] = 2
+Suscep_sh$Class [Suscep_sh$Classe=="Baixa"] = 1
+Suscep = fasterize(Suscep_sh, a_raster_10, "Class")
+plot(Suscep)
+Suscep_foc = focal(Suscep, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=modal, na.rm=T)
+writeRaster (Suscep_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_Suscep_foc.tif", overwrite=F, datatype='INT1U')
+
+
+## Slope 
+Slope = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Decliv/CurvEmplSlopeWGS23sGr10_GDAL.tif")
+Slope_foc = focal(Slope, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=max, na.rm=T)
+writeRaster (Slope_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_Slope_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+## Aspect
+Aspect = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Decliv/CurvEmplAspectWGS23sGr10_GDAL.tif")
+Aspect_foc = focal(Aspect, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=median, na.rm=T)
+writeRaster (Aspect_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_Slope_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+## Veg
+Veg2010 = raster ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Class/Class_2010_Gr10.tif")
+Veg2010 [Veg2010>1] = 0
+plot(Veg2010)
+masc_rmsp = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/SIG/LimRMSP_WGS23s_Gr10.tif")
+Veg2010_rmsp = Veg2010 * masc_rmsp
+plot(Veg2010_rmsp)
+Veg2010_foc = focal(Veg2010, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+plot(Veg2010_foc)
+writeRaster (Veg2010_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_Veg2010_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+## Veg Change
+Veg1992 = raster ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Class/Class_1992_Gr10.tif")
+Veg1992 [Veg1992>1] = 0
+plot(Veg1992)
+Veg1992_rmsp = Veg1992 * masc_rmsp
+VegDif = Veg2010_rmsp - Veg1992_rmsp
+VegDif_foc = focal(VegDif, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+plot(VegDif_foc)
+writeRaster (VegDif_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Data_VegDif_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+
+
+
+##### Adicional Grids
+SEsg10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/DomDas_SEsg_Gr10_2010.tif")
+SEsg10_foc = focal(SEsg10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=sum, na.rm=T)
+writeRaster (SEsg10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SEsg10_foc.tif", overwrite=F, datatype='FLT4S')
+
+SPav10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/DomDas_SPav_Gr10_2010.tif")
+SPav10_foc = focal(SPav10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=sum, na.rm=T)
+writeRaster (SPav10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SPav10_foc.tif", overwrite=F, datatype='FLT4S')
+
+SMF10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/DomDas_SMF_Gr10_2010.tif")
+SMF10_foc = focal(SMF10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=sum, na.rm=T)
+writeRaster (SMF10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SMF10_foc.tif", overwrite=F, datatype='FLT4S')
+
+SBL10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/DomDas_SBL_Gr10_2010.tif")
+SBL10_foc = focal(SBL10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=sum, na.rm=T)
+writeRaster (SBL10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SBL10_foc.tif", overwrite=F, datatype='FLT4S')
+
+EsgCA10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/DomDas_EsgCA_Gr10_2010.tif")
+EsgCA10_foc = focal(EsgCA10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=sum, na.rm=T)
+writeRaster (EsgCA10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_EsgCA10_foc.tif", overwrite=F, datatype='FLT4S')
+
+PReFe10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/PReFe_Gr10_2010.tif")
+PReFe10_foc = focal(PReFe10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+writeRaster (PReFe10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReFe10_foc.tif", overwrite=F, datatype='FLT4S')
+
+PReMa10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/PReMa_Gr10_2010.tif")
+PReMa10_foc = focal(PReMa10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+writeRaster (PReMa10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReMa10_foc.tif", overwrite=F, datatype='FLT4S')
+
+PReAlf10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/PReAlf_Gr10_2010.tif")
+PReAlf10_foc = focal(PReAlf10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+writeRaster (PReAlf10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReAlf10_foc.tif", overwrite=F, datatype='FLT4S')
+
+PReFeAlf10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/PReFeAlf_Gr10_2010.tif")
+PReFeAlf10_foc = focal(PReFeAlf10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+writeRaster (PReFeAlf10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReFeAlf10_foc.tif", overwrite=F, datatype='FLT4S')
+
+PReMaAlf10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/PReMaAlf_Gr10_2010.tif")
+PReMaAlf10_foc = focal(PReMaAlf10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+writeRaster (PReMaAlf10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReMaAlf10_foc.tif", overwrite=F, datatype='FLT4S')
+
+HabDm10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/HabDm_Gr10_2010.tif")
+HabDm10_foc = focal(HabDm10, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=mean, na.rm=T)
+writeRaster (HabDm10_foc, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_HabDm10_foc.tif", overwrite=F, datatype='FLT4S')
+
+
+
+
+
+################################################ Estat - Preparação ---------------------------------
+rm(list=ls())
+gc()
+
+
+## Samples yes
+library(raster)
+library(sf)
+library(fasterize)
+
+Ano = 2010
+set.seed(24)
+foc = 7
+
+a_raster_10 = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/SIG/LimGrade_WGS23s_Gr10.tif")
+
+disas = st_read ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Desastres", "Desastres_IGDez2017_Selecionados_Filtro2_WGS23s")
+disas_Ano = disas [disas$AnoHidrol=="2010", ]
+pts_yes = disas_Ano
+pts_yes$ID = 0
+pts_yes$Date = as.Date(as.character(pts_yes$Data_Adota), format="%Y/%m/%d")
+pts_yes = pts_yes[, c("ID_do_Even", "ID", "Date")]
+pts_yes$Class = "yes"
+pts_yes = na.omit(pts_yes)
+pts_yes$ID = c(1:nrow(pts_yes))
+
+st_write(pts_yes, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/PTS_Yes2038.shp", delete_dsn=F)
+
+
+## Masc disasters (w/ buff 50m) 
+#pts_yes = st_read ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Inter/Estat", "PTS_Yes2038")
+
+r_pts_yes = rasterize (pts_yes, y=a_raster_10, 'ID')
+plot(r_pts_yes)
+r_pts_yes[is.na(r_pts_yes)] = 0
+r_pts_yes[r_pts_yes>0] = 1
+r_pts_yes_foc = focal(r_pts_yes, w=matrix(1,nrow=foc,ncol=foc), pad=T, fun=max )
+r_pts_yes_foc[is.na(r_pts_yes_foc)] = 0
+plot(r_pts_yes_foc)
+r_pts_yes_foc[r_pts_yes_foc==1] = 2
+r_pts_yes_foc[r_pts_yes_foc==0] = 1
+r_pts_yes_foc[r_pts_yes_foc==2] = 0
+plot(r_pts_yes_foc)
+writeRaster(r_pts_yes_foc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Masc_PTSYes2038_foc.tif", overwrite=F, datatype='INT1U')
+
+
+## Masc dom plus disasters
+masc_DomDas = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Grade/DomDas_Gr10_2010.tif")
+masc_DomDas[masc_DomDas==0] = NA
+masc_DomDas[masc_DomDas>0] = 1
+plot(masc_DomDas)
+writeRaster(masc_DomDas, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Masc_Dom.tif", overwrite=F, datatype='INT1U')
+
+
+## Masc excl Mun
+masc_exclMun = st_read ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter", "Masc_Mun")
+masc_exclMun$masc = 0
+masc_exclMun$masc [masc_exclMun$MapSusc==1 & masc_exclMun$DisasAnH10==1] = 1
+r_masc_exclMun = fasterize (masc_exclMun, a_raster_10, 'masc')
+plot(r_masc_exclMun)
+writeRaster(r_masc_exclMun, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Masc_exclMun.tif", overwrite=F, datatype='INT1U')
+
+
+## Masc disasters plus dom plus munexcl
+masc = r_pts_yes_foc * masc_DomDas * r_masc_exclMun
+masc[masc!=1]=NA
+plot(masc)
+writeRaster(masc, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Masc.tif", overwrite=F, datatype='INT1U')
+
+
+## No Points
+masc = raster ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Masc.tif")
+pts_no_all = as.data.frame(masc, xy=T, na.rm=T)
+#set.seed(24)
+#pts_no = pts_no_all[sample(nrow(pts_no_all), 1000000), c("x","y")]
+pts_no = pts_no_all[,1:2]
+pts_no$ID_do_Even = c("sd")
+pts_no$ID = c(1:nrow(pts_no))
+set.seed(24)
+pts_no$Date = sample(seq(as.Date('2009/10/01'), as.Date('2010/09/30'), by="day"), nrow(pts_no), replace=T)
+pts_no$Class = "no"
+pts_no_sf = st_as_sf(pts_no, coords = c("x","y"), crs=32723)
+st_write(pts_no_sf, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/PTS_No.shp", delete_dsn=F)
+
+
+## Yes and No Points
+pts_yes = st_read("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter", "PTS_Yes2038")
+pts_no = st_read ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter", "PTS_No")
+pts = rbind (pts_yes, pts_no)
+pts$ID = 1:nrow(pts)
+st_write(pts, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/PTS.shp", delete_dsn=F)
+
+
+## Rainfall - All Previous Days
+rm(list=ls())
+gc()
+
+library(raster)
+library(sf)
+
+Ano = 2010
+
+pts = st_read ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter", "PTS")
+
+tmp = pts
+tmp$nodia = (as.numeric(tmp$Date - (as.Date("2008.6.01", format="%Y.%m.%d"))))+1
+tmp_df = cbind(as.data.frame(tmp), as.data.frame(st_coordinates(tmp)))
+
+tmp$value = NA
+range (tmp$nodia)
+
+pts_rain = pts 
+pts_rain$Rain0d = NA
+pts_rain$Rain1d = NA
+pts_rain$Rain2d = NA
+pts_rain$Rain3d = NA
+pts_rain$Rain4d = NA
+pts_rain$Rain5d = NA
+pts_rain$Rain6d = NA
+pts_rain$Rain7d = NA
+pts_rain$Rain8d = NA
+pts_rain$Rain9d = NA
+pts_rain$Rain10d = NA
+pts_rain$Rain11d = NA
+pts_rain$Rain12d = NA
+pts_rain$Rain13d = NA
+pts_rain$Rain14d = NA
+pts_rain$Rain15d = NA
+pts_rain$Rain16d = NA
+pts_rain$Rain17d = NA
+pts_rain$Rain18d = NA
+pts_rain$Rain19d = NA
+pts_rain$Rain20d = NA
+pts_rain$Rain21d = NA
+pts_rain$Rain22d = NA
+pts_rain$Rain23d = NA
+pts_rain$Rain24d = NA
+pts_rain$Rain25d = NA
+pts_rain$Rain26d = NA
+pts_rain$Rain27d = NA
+pts_rain$Rain28d = NA
+pts_rain$Rain29d = NA
+pts_rain$Rain30d = NA
+pts_rain$Rain35d = NA
+pts_rain$Rain40d = NA
+pts_rain$Rain45d = NA
+pts_rain$Rain60d = NA
+pts_rain$Rain90d = NA
+pts_rain$Rain120d = NA
+
+listbandRG = list.files("C:/ADriveSync/Andando/Doutorado/_Tese/Processa_Chuva/CHIRPS_Total_2009a2011/",full.names = T)
+fun1 <- function(x){readAll(brick(x))}
+my.Area.tot.RG <- sapply(listbandRG, fun1) # this is equivalent as a loop
+
+library(dplyr)
+system.time({
+  for (r in 1:length(my.Area.tot.RG)) {
+    rain = my.Area.tot.RG[[r]]
+    list_select= vector("list", length(min(range(tmp_df$nodia)):max(range(tmp_df$nodia))))
+    for (i in min(range(tmp_df$nodia)):max(range(tmp_df$nodia))) {
+      tmp_df_selec = tmp_df[which(tmp_df$nodia==i),]
+      tmp_df_selec$value = as.numeric(extract(rain[[i]], tmp_df_selec[,c("X", "Y")], df=F))
+      list_select[[i]]=tmp_df_selec
+      #tmp_value = rbind(tmp_value, tmp_df_selec)
+      print(paste (r, "- ", i))
+    }
+    tmp_value = bind_rows(list_select, .id = "column_label") 
+    tmp_merge = merge(tmp_df, tmp_value[,c("ID","value")], by="ID")
+    pts_rain[,r+5] = tmp_merge[,"value"]
+  }
+})
+
+pts_rain$Rain0d1d = pts_rain$Rain0d + pts_rain$Rain1d
+pts_rain$Rain0d2d = pts_rain$Rain0d + pts_rain$Rain2d
+pts_rain$Rain0d3d = pts_rain$Rain0d + pts_rain$Rain3d
+pts_rain$Rain0d4d = pts_rain$Rain0d + pts_rain$Rain4d
+pts_rain$Rain0d5d = pts_rain$Rain0d + pts_rain$Rain5d
+pts_rain$Rain0d6d = pts_rain$Rain0d + pts_rain$Rain6d
+pts_rain$Rain0d7d = pts_rain$Rain0d + pts_rain$Rain7d
+pts_rain$Rain0d8d = pts_rain$Rain0d + pts_rain$Rain8d
+pts_rain$Rain0d9d = pts_rain$Rain0d + pts_rain$Rain9d
+pts_rain$Rain0d10d = pts_rain$Rain0d + pts_rain$Rain10d
+pts_rain$Rain0d11d = pts_rain$Rain0d + pts_rain$Rain11d
+pts_rain$Rain0d12d = pts_rain$Rain0d + pts_rain$Rain12d
+pts_rain$Rain0d13d = pts_rain$Rain0d + pts_rain$Rain13d
+pts_rain$Rain0d14d = pts_rain$Rain0d + pts_rain$Rain14d
+pts_rain$Rain0d15d = pts_rain$Rain0d + pts_rain$Rain15d
+pts_rain$Rain0d16d = pts_rain$Rain0d + pts_rain$Rain16d
+pts_rain$Rain0d17d = pts_rain$Rain0d + pts_rain$Rain17d
+pts_rain$Rain0d18d = pts_rain$Rain0d + pts_rain$Rain18d
+pts_rain$Rain0d19d = pts_rain$Rain0d + pts_rain$Rain19d
+pts_rain$Rain0d20d = pts_rain$Rain0d + pts_rain$Rain20d
+pts_rain$Rain0d21d = pts_rain$Rain0d + pts_rain$Rain21d
+pts_rain$Rain0d22d = pts_rain$Rain0d + pts_rain$Rain22d
+pts_rain$Rain0d23d = pts_rain$Rain0d + pts_rain$Rain23d
+pts_rain$Rain0d24d = pts_rain$Rain0d + pts_rain$Rain24d
+pts_rain$Rain0d25d = pts_rain$Rain0d + pts_rain$Rain25d
+pts_rain$Rain0d26d = pts_rain$Rain0d + pts_rain$Rain26d
+pts_rain$Rain0d27d = pts_rain$Rain0d + pts_rain$Rain27d
+pts_rain$Rain0d28d = pts_rain$Rain0d + pts_rain$Rain28d
+pts_rain$Rain0d29d = pts_rain$Rain0d + pts_rain$Rain29d
+pts_rain$Rain0d30d = pts_rain$Rain0d + pts_rain$Rain30d
+pts_rain$Rain0d35d = pts_rain$Rain0d + pts_rain$Rain35d
+pts_rain$Rain0d40d = pts_rain$Rain0d + pts_rain$Rain40d
+pts_rain$Rain0d45d = pts_rain$Rain0d + pts_rain$Rain45d
+pts_rain$Rain0d60d = pts_rain$Rain0d + pts_rain$Rain60d
+pts_rain$Rain0d90d = pts_rain$Rain0d + pts_rain$Rain90d
+pts_rain$Rain0d120d = pts_rain$Rain0d + pts_rain$Rain120d
+
+write.csv2 (pts_rain, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/DataRain_PTS.csv")
+
+pts_rain_sf = st_as_sf(pts_rain, coords = c("x","y"), crs=32723)
+st_write(pts_rain_sf, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/DataRain_PTS.shp", delete_dsn=F)
+
+
+
+
+
+################################################ Estat - Extract explanatory variables ---------------------------------
+rm(list=ls())
+gc()
+
+library(raster)
+library(sf)
+library(caret)
+
+Ano = 2010
+
+pts = st_read ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter", "PTS")
+Data=pts
+
+Data_Dom2010_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_Dom2010_foc.tif")
+tab = extract(Data_Dom2010_foc, pts, df=T)
+Data$Dm2010 = tab[,c("Data_Dom2010_foc")]
+
+Data_DomDif_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_DomDif_foc.tif")
+tab = extract(Data_DomDif_foc, pts, df=T)
+Data$DmDif = tab[,c("Data_DomDif_foc")]
+
+Data_MeanInc2010_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_MeanInc2010_foc.tif")
+tab = extract(Data_MeanInc2010_foc, pts, df=T)
+Data$MnInc2010 = tab[,c("Data_MeanInc2010_foc")]
+
+Data_MeanIncDif_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_MeanIncDif_foc.tif")
+tab = extract(Data_MeanIncDif_foc, pts, df=T)
+Data$MnIncDif = tab[,c("Data_MeanIncDif_foc")]
+
+Data_Subn2010_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_Subn2010_foc.tif")
+tab = extract(Data_Subn2010_foc, pts, df=T)
+Data$Subn2010 = as.factor(tab[,c("Data_Subn2010_foc")])
+
+Data_SubnChange_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_SubnChange_foc.tif")
+tab = extract(Data_SubnChange_foc, pts, df=T)
+Data$SubnChn = as.factor(tab[,c("Data_SubnChange_foc")])
+
+Data_Suscep_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_Suscep_foc.tif")
+tab = extract(Data_Suscep_foc, pts, df=T)
+Data$Suscep = as.factor(tab[,c("Data_Suscep_foc")])
+
+Data_Veg2010_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_Veg2010_foc.tif")
+tab = extract(Data_Veg2010_foc, pts, df=T)
+tab[is.na(tab)] = 0
+Data$Veg2010 = tab[,c("Data_Veg2010_foc")]
+
+Data_VegDif_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_VegDif_foc.tif")
+tab = extract(Data_VegDif_foc, pts, df=T)
+tab[is.na(tab)] = 0
+Data$VegDif = tab[,c("Data_VegDif_foc")]
+
+Data_Slope_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_Slope_foc.tif")
+tab = extract(Data_Slope_foc, pts, df=T)
+Data$Slope = tab[,c("Data_Slope_foc")]
+
+Data_Aspect_foc = raster("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/Data_Aspect_foc.tif")
+tab = extract(Data_Aspect_foc, pts, df=T)
+Data$Aspect = tab[,c("Data_Aspect_foc")]
+
+pts_rain = read.csv2 ("C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/Inter/DataRain_PTS.csv", header=T)  
+Data$Rain0d = pts_rain$Rain0d
+Data$Rain0d1d = pts_rain$Rain0d1d
+Data$Rain0d2d = pts_rain$Rain0d2d
+Data$Rain0d3d = pts_rain$Rain0d3d
+Data$Rain0d4d = pts_rain$Rain0d4d
+Data$Rain0d5d = pts_rain$Rain0d5d
+Data$Rain0d6d = pts_rain$Rain0d6d
+Data$Rain0d7d = pts_rain$Rain0d7d
+Data$Rain0d8d = pts_rain$Rain0d8d
+Data$Rain0d9d = pts_rain$Rain0d9d
+Data$Rain0d10d = pts_rain$Rain0d10d
+Data$Rain0d11d = pts_rain$Rain0d11d
+Data$Rain0d12d = pts_rain$Rain0d12d
+Data$Rain0d13d = pts_rain$Rain0d13d
+Data$Rain0d14d = pts_rain$Rain0d14d
+Data$Rain0d15d = pts_rain$Rain0d15d
+Data$Rain0d16d = pts_rain$Rain0d16d
+Data$Rain0d17d = pts_rain$Rain0d17d
+Data$Rain0d18d = pts_rain$Rain0d18d
+Data$Rain0d19d = pts_rain$Rain0d19d
+Data$Rain0d20d = pts_rain$Rain0d20d
+Data$Rain0d21d = pts_rain$Rain0d21d
+Data$Rain0d22d = pts_rain$Rain0d22d
+Data$Rain0d23d = pts_rain$Rain0d23d
+Data$Rain0d24d = pts_rain$Rain0d24d
+Data$Rain0d25d = pts_rain$Rain0d25d
+Data$Rain0d26d = pts_rain$Rain0d26d
+Data$Rain0d27d = pts_rain$Rain0d27d
+Data$Rain0d28d = pts_rain$Rain0d28d
+Data$Rain0d29d = pts_rain$Rain0d29d
+Data$Rain0d30d = pts_rain$Rain0d30d
+Data$Rain0d35d = pts_rain$Rain0d35d
+Data$Rain0d40d = pts_rain$Rain0d40d
+Data$Rain0d45d = pts_rain$Rain0d45d
+Data$Rain0d60d = pts_rain$Rain0d60d 
+Data$Rain0d90d = pts_rain$Rain0d90d
+Data$Rain0d120d = pts_rain$Rain0d120d
+
+
+## Adicional variables
+pts = st_read ("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter", "PTS")
+
+Data = st_read ("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter", "DataAll_PTS_old")
+Data = Data[,-(53:55)]
+
+pts_rain = read.csv2 ("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/DataRain_PTS.csv", header=T)  
+Data$RainIn0d14d = pts_rain$Rain0d / pts_rain$Rain0d14d
+Data$RainIn0d14d [Data$Rain0d==0] = 0
+Data$RainIn0d14d [pts_rain$Rain0d14d==0] = 0
+Data$RainIn1d14d = pts_rain$Rain0d1d / pts_rain$Rain0d14d
+Data$RainIn1d14d [Data$Rain0d1d==0] = 0
+Data$RainIn1d14d [pts_rain$Rain0d14d==0] = 0
+Data$RainIn2d14d = pts_rain$Rain0d2d / pts_rain$Rain0d14d
+Data$RainIn2d14d [Data$Rain0d2d==0] = 0
+Data$RainIn2d14d [pts_rain$Rain0d14d==0] = 0
+
+Data_Dom2010_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_Dom2010_foc.tif")
+Dom = extract(Data_Dom2010_foc, pts, df=T)
+
+Data_SEsg10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SEsg10_foc.tif")
+tab = extract(Data_SEsg10_foc, pts, df=T)
+Data$PSEsg10 = tab[,c("Data_SEsg10_foc")]/Dom[,c("Data_Dom2010_foc")]
+Data$PSEsg10 [tab[,c("Data_SEsg10_foc")]==0] = 0
+Data$PSEsg10 [Dom[,c("Data_Dom2010_foc")]==0] = 0
+
+Data_SPav10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SPav10_foc.tif")
+tab = extract(Data_SPav10_foc, pts, df=T)
+Data$PSPav10 = tab[,c("Data_SPav10_foc")]/Dom[,c("Data_Dom2010_foc")]
+Data$PSPav10 [tab[,c("Data_SPav10_foc")]==0] = 0
+Data$PSPav10 [Dom[,c("Data_Dom2010_foc")]==0] = 0
+
+Data_SMF10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SMF10_foc.tif")
+tab = extract(Data_SMF10_foc, pts, df=T)
+Data$PSMF10 = tab[,c("Data_SMF10_foc")]/Dom[,c("Data_Dom2010_foc")]
+Data$PSMF10 [tab[,c("Data_SMF10_foc")]==0] = 0
+Data$PSMF10 [Dom[,c("Data_Dom2010_foc")]==0] = 0
+
+Data_SBL10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_SBL10_foc.tif")
+tab = extract(Data_SBL10_foc, pts, df=T)
+Data$PSBL10 = tab[,c("Data_SBL10_foc")]/Dom[,c("Data_Dom2010_foc")]
+Data$PSBL10 [tab[,c("Data_SBL10_foc")]==0] = 0
+Data$PSBL10 [Dom[,c("Data_Dom2010_foc")]==0] = 0
+
+Data_EsgCA10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_EsgCA10_foc.tif")
+tab = extract(Data_EsgCA10_foc, pts, df=T)
+Data$PEsgCA10 = tab[,c("Data_EsgCA10_foc")]/Dom[,c("Data_Dom2010_foc")]
+Data$PEsgCA10 [tab[,c("Data_EsgCA10_foc")]==0] = 0
+Data$PEsgCA10 [Dom[,c("Data_Dom2010_foc")]==0] = 0
+
+Data_PReFe10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReFe10_foc.tif")
+tab = extract(Data_PReFe10_foc, pts, df=T)
+Data$PReFe10 = tab[,c("Data_PReFe10_foc")]
+
+Data_PReMa10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReMa10_foc.tif")
+tab = extract(Data_PReMa10_foc, pts, df=T)
+Data$PReMa10 = tab[,c("Data_PReMa10_foc")]
+
+Data_PReAlf10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReAlf10_foc.tif")
+tab = extract(Data_PReAlf10_foc, pts, df=T)
+Data$PReAlf10 = tab[,c("Data_PReAlf10_foc")]
+
+Data_PReFeAlf10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReFeAlf10_foc.tif")
+tab = extract(Data_PReFeAlf10_foc, pts, df=T)
+Data$PReFeAlf10 = tab[,c("Data_PReFeAlf10_foc")]
+
+Data_PReMaAlf10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_PReMaAlf10_foc.tif")
+tab = extract(Data_PReMaAlf10_foc, pts, df=T)
+Data$PReMaAlf10 = tab[,c("Data_PReMaAlf10_foc")]
+
+Data_HabDm10_foc = raster("D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/Data_HabDm10_foc.tif")
+tab = extract(Data_HabDm10_foc, pts, df=T)
+Data$HabDm10 = tab[,c("Data_HabDm10_foc")]
+
+
+## Save
+st_write(Data, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/DataAll_PTS.shp", delete_dsn=F)
+write.csv2 (Data, "D:/_Arquivo/Doutorado/ArtigoSETS/Estat_Inter/DataAll_PTS.csv")
+
+set.seed(24)
+DataIndex = createDataPartition(Data$Class, p=0.8, list=F)
+Data_train = Data[DataIndex,]
+Data_test = Data[-DataIndex,]
+
+colnames(Data_test)[16] = c("Rn0d")
+colnames(Data_test)[17] = c("Rn0d1d") 
+colnames(Data_test)[18] = c("Rn0d2d")
+colnames(Data_test)[19] = c("Rn0d3d")
+colnames(Data_test)[20] = c("Rn0d4d")
+colnames(Data_test)[21] = c("Rn0d5d")
+colnames(Data_test)[22] = c("Rn0d6d")
+colnames(Data_test)[23] = c("Rn0d7d")
+colnames(Data_test)[24] = c("Rn0d8d")
+colnames(Data_test)[25] = c("Rn0d9d")
+
+write.csv2 (Data_train, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/DataAll_Train_PTS.csv")
+write.csv2 (Data_test, "C:/ADriveSync/Andando/Publica/EmAndamento/SETS/Processa/Estat/DataAll_Test_PTS.csv")
