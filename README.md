@@ -1,6 +1,6 @@
 # Social–Ecological–Technological System: The Case of Metropolitan Region of São Paulo, Brazil
 This repository contains all databases and codes to support reported results published in the paper "Assessing Landslide Drivers in 
-Social–Ecological–Technological Systems: The Case of Metropolitan Region of São Paulo, Brazil"
+Social–Ecological–Technological Systems: The Case of Metropolitan Region of São Paulo, Brazil" (https://www.mdpi.com/2072-4292/15/12/3048) 
 
 Disasters database used in this paper are available online: https://www.infraestruturameioambiente.sp.gov.br/wp-content/uploads/sites/233/2017/12/Cad_Desastres_Shapefile_50mun.zip. 
 
